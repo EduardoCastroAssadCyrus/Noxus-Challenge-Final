@@ -27,6 +27,7 @@ export const createAsset = (request: AssetWriteRequest) => gateway.createAsset(r
 
 export const updateAsset = (id: string, request: AssetUpdateRequest) =>
   gateway.updateAsset(id, request);
+export const deleteAsset = (id: string) => gateway.deleteAsset(id);
 
 export const toAssetWriteRequest = (asset: Asset): AssetWriteRequest => ({
   name: asset.name,

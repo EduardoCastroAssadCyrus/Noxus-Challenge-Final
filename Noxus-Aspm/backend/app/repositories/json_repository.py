@@ -62,20 +62,15 @@ class JsonNoxusRepository:
                     "Aguarde a análise em andamento terminar antes de limpar os dados."
                 )
             counts = {
+                "assets": len(state.assets),
                 "findings": len(state.findings),
                 "runs": len(state.runs),
                 "scans": len(self._scan_records()),
             }
             state.findings = []
+            state.assets = []
             state.runs = []
             state.processed_scan_ids = []
-            for asset in state.assets:
-                asset.open_findings = 0
-                asset.last_scan_at = None
-                asset.scan_metadata = None
-                asset.assessment_status = "not_assessed"
-                asset.risk_score = None
-                asset.compliance = None
             # Se o processo cair, a próxima leitura termina a limpeza antes de
             # recuperar scans. Assim, relatórios excluídos não voltam ao painel.
             self._atomic_json(self.clear_marker, state.model_dump(mode="json", by_alias=True))
@@ -296,6 +291,18 @@ class JsonNoxusRepository:
                 self._write(state)
                 return updated
         return None
+
+    def delete_asset(self, asset_id: str):
+        with self._lock:
+            state = self._read()
+            if not any(asset.id == asset_id for asset in state.assets):
+                return False
+            state.assets = [asset for asset in state.assets if asset.id != asset_id]
+            for finding in state.findings:
+                if finding.asset_id == asset_id:
+                    finding.asset_id = None
+            self._write(state)
+            return True
 
     def list_findings(self):
         return self.dashboard().findings

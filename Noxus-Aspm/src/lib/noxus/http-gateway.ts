@@ -19,7 +19,7 @@ import type {
 export function createHttpGateway(apiBaseUrl: string): NoxusGateway {
   return {
     clearReports: () =>
-      requestJson<{ findings: number; scans: number; runs: number }>(
+      requestJson<{ assets: number; findings: number; scans: number; runs: number }>(
         apiBaseUrl,
         "/v1/reports/clear",
         {
@@ -58,6 +58,11 @@ export function createHttpGateway(apiBaseUrl: string): NoxusGateway {
       requestJson<Asset>(apiBaseUrl, `/v1/assets/${encodeURIComponent(id)}`, {
         method: "PATCH",
         body: JSON.stringify(request),
+      }),
+
+    deleteAsset: (id) =>
+      requestJson<void>(apiBaseUrl, `/v1/assets/${encodeURIComponent(id)}`, {
+        method: "DELETE",
       }),
 
     listFindings: (signal) =>
@@ -138,5 +143,6 @@ async function requestJson<T>(apiBaseUrl: string, path: string, init?: RequestIn
   }
 
   // Quando o schema do backend for fechado, valide a resposta aqui antes de entregá-la à UI.
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }

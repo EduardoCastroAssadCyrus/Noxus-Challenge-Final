@@ -179,8 +179,8 @@ O histórico da aplicação é exclusivamente JSON.
 ## Recursos temporários do protótipo
 
 O botão **Limpar dados** no Cérebro Central pede confirmação e remove os relatórios
-recebidos, os achados revisados ou pendentes e o histórico/arquivos das análises.
-Mantém o cadastro dos ativos e do Agent. A API bloqueia a limpeza enquanto uma
+recebidos, os achados revisados ou pendentes, os ativos e o histórico/arquivos das análises.
+Mantém a configuração do Agent. A API bloqueia a limpeza enquanto uma
 análise estiver em andamento e fora dos ambientes `development`/`test`.
 Um Agent em `watch` pode enviar novos relatórios depois da limpeza; pare-o com Ctrl+C
 se quiser manter o painel vazio. A limpeza não pode ser desfeita.

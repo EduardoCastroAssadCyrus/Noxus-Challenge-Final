@@ -10,7 +10,7 @@ from .conftest import envelope
 from .test_local_flow import import_into, output_for
 
 
-def test_clear_removes_reviewed_pending_and_files_but_keeps_registration(client, asset_payload):
+def test_clear_removes_reviewed_pending_assets_and_files(client, asset_payload):
     repo = client.app.state.repository
     manual = client.post("/api/v1/assets", json=asset_payload).json()
     import_into(repo)
@@ -26,11 +26,10 @@ def test_clear_removes_reviewed_pending_and_files_but_keeps_registration(client,
 
     response = client.post("/api/v1/reports/clear", json={"confirmation": "LIMPAR DADOS"})
     assert response.status_code == 200
-    assert response.json() == {"findings": 2, "scans": 2, "runs": 1}
+    assert response.json() == {"assets": 2, "findings": 2, "scans": 2, "runs": 1}
     reopened = JsonNoxusRepository(repo._data_file)
     assert reopened.list_findings() == reopened.list_scans() == reopened.list_runs() == []
-    assert {a.id for a in reopened.list_assets()} == {manual["id"], "backend-test"}
-    assert all(a.open_findings == 0 and a.last_scan_at is None for a in reopened.list_assets())
+    assert reopened.list_assets() == []
     assert connection.read_text(encoding="utf-8") == '{"test": true}'
     assert not repo.runs_dir.exists() and not repo.scans_dir.exists()
     # O mesmo relatório pode ser importado de novo para outro teste.
@@ -80,3 +79,12 @@ def test_review_preserves_automatic_origin(client):
         ).status_code
         == 422
     )
+
+
+def test_delete_asset_unlinks_findings_and_returns_404(client):
+    repo = client.app.state.repository
+    import_into(repo)
+    assert client.delete("/api/v1/assets/backend-test").status_code == 204
+    assert repo.list_assets() == []
+    assert repo.list_findings()[0].asset_id is None
+    assert client.delete("/api/v1/assets/backend-test").status_code == 404

@@ -10,7 +10,13 @@ import {
   Plus,
   Settings2,
   ShieldQuestion,
+  Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import { AssetEditorSheet } from "@/components/noxus/AssetEditorSheet";
 import { SeverityBadge } from "@/components/noxus/SeverityBadge";
@@ -28,6 +34,7 @@ import {
 import {
   assetsQuery,
   createAsset,
+  deleteAsset,
   dashboardQuery,
   toAssetUpdateRequest,
   toAssetWriteRequest,
@@ -56,6 +63,26 @@ export function AssetRegistry({ initialAssets }: { initialAssets: Asset[] }) {
   const [editorOpen, setEditorOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [feedback, setFeedback] = useState("");
+  const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const confirmDelete = async () => {
+    if (!assetToDelete) return;
+    setDeleting(true);
+    try {
+      await deleteAsset(assetToDelete.id);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: assetsQuery.queryKey }),
+        queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey }),
+      ]);
+      toast.success(`${assetToDelete.name} foi excluído.`);
+      setAssetToDelete(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível excluir o ativo.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const manualAssets = assets.filter((asset) => asset.registrationSource === "manual").length;
   const automaticAssets = assets.length - manualAssets;
@@ -282,6 +309,15 @@ export function AssetRegistry({ initialAssets }: { initialAssets: Asset[] }) {
                     >
                       <Settings2 /> Configurar
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setAssetToDelete(asset)}
+                      aria-label={`Excluir ${asset.name}`}
+                      className="text-destructive"
+                    >
+                      <Trash2 /> Excluir
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -296,6 +332,25 @@ export function AssetRegistry({ initialAssets }: { initialAssets: Asset[] }) {
         onOpenChange={setEditorOpen}
         onSave={saveAsset}
       />
+      <AlertDialog open={assetToDelete !== null} onOpenChange={(open) => {
+        if (!open && !deleting) setAssetToDelete(null);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir ativo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O ativo {assetToDelete?.name} será removido do inventário. Os achados recebidos
+              continuarão no histórico, sem vínculo com esse ativo. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <Button variant="destructive" disabled={deleting} onClick={confirmDelete}>
+              {deleting ? "Excluindo…" : "Excluir ativo"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

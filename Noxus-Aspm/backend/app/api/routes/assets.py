@@ -53,3 +53,15 @@ def update_asset(
             detail={"code": "asset_not_found", "message": "Ativo não encontrado."},
         )
     return asset
+
+
+@router.delete("/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_asset(
+    asset_id: str,
+    repository: Annotated[NoxusRepository, Depends(get_repository)],
+) -> None:
+    if not repository.delete_asset(asset_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "asset_not_found", "message": "Ativo não encontrado."},
+        )

@@ -30,7 +30,7 @@ export function ClearReportsButton() {
       await client.cancelQueries({ queryKey: ["noxus"] });
       await client.invalidateQueries({ queryKey: ["noxus"] });
       setOpen(false);
-      toast.success("Relatórios e análises removidos.");
+      toast.success("Dados removidos.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível limpar os dados.");
     } finally {
@@ -54,11 +54,10 @@ export function ClearReportsButton() {
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Limpar todos os relatórios?</AlertDialogTitle>
+          <AlertDialogTitle>Limpar todos os dados?</AlertDialogTitle>
           <AlertDialogDescription>
             Recurso temporário de teste. Apaga os relatórios JSON recebidos, todos os achados
-            (revisados ou não pela IA) e o histórico das análises. Não há como desfazer. Os
-            cadastros dos ativos e do Agent são mantidos. Um Agent em monitoramento pode enviar
+            (revisados ou não pela IA), todos os ativos e o histórico das análises. Não há como desfazer. A configuração do Agent é mantida. Um Agent em monitoramento pode enviar
             novos relatórios depois da limpeza.
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -70,7 +69,7 @@ export function ClearReportsButton() {
         <AlertDialogFooter>
           <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
           <Button variant="destructive" disabled={busy} onClick={clear}>
-            {busy ? "Limpando…" : "Apagar todos os relatórios"}
+            {busy ? "Limpando…" : "Apagar todos os dados"}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
