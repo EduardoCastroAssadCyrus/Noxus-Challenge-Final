@@ -1,0 +1,233 @@
+analyze_vulnerabilities:
+  description: >
+    Analyze the raw vulnerability findings provided below.
+
+    INPUT VULNERABILITIES:
+    {vulnerabilities}
+
+    You must analyze EVERY vulnerability finding contained in the
+    input.
+
+    CRITICAL ID RULES:
+
+    - The "id" field is the unique identifier of the finding.
+    - Preserve the original ID exactly.
+    - Never modify an ID.
+    - Never create a new ID.
+    - Never merge two findings.
+    - Never remove a finding.
+    - Each analysis must correspond to exactly one original finding.
+
+    For each finding, identify:
+    - vulnerability identifier
+    - security tool
+    - severity
+    - title
+    - affected file, endpoint or component
+    - vulnerability type
+    - technical evidence
+    - relevant code or payload, when available
+    - context provided by the scanner
+    - indicators supporting a true positive
+    - indicators supporting a false positive
+
+    Do not ignore findings.
+    Do not summarize the entire input into a single finding.
+
+    Analyze each finding individually.
+
+    Use ONLY the information provided in the input.
+    Do not invent code, evidence, application behavior or vulnerability
+    details that are not present in the input.
+
+  expected_output: >
+    A structured analysis containing EVERY vulnerability finding from
+    the input.
+
+    Each finding must preserve its original identifier exactly.
+
+    No finding may be omitted, merged, renamed or created.
+
+  agent: vulnerability_analyzer
+
+
+validate_classifications:
+  description: >
+    Independently review the vulnerability analyses produced by the
+    vulnerability analyzer.
+
+    For every finding:
+    - verify whether the proposed classification is supported by evidence
+    - identify unsupported assumptions
+    - identify missing or insufficient evidence
+    - verify that the reasoning is technically consistent
+    - determine whether the finding should remain classified as a
+      true positive or false positive
+
+    Do not invent evidence or information.
+    If the available evidence is insufficient, explicitly indicate that
+    the classification cannot be strongly supported by the available
+    information.
+
+  expected_output: >
+    A validated classification for every vulnerability finding, including
+    the final classification, confidence level, supporting evidence and
+    validation reasoning.
+
+  agent: fp_tp_validator
+
+  context:
+    - analyze_vulnerabilities
+
+
+classify_findings:
+  description: >
+    Process ALL validated vulnerability findings.
+
+    The original input vulnerabilities are available through the
+    vulnerabilities input.
+
+    Your output MUST be a valid JSON object.
+
+    DO NOT output Markdown.
+    DO NOT output bullet points.
+    DO NOT output explanations outside the JSON object.
+    DO NOT use ```json code fences.
+
+    The root JSON object MUST contain exactly these two keys:
+
+    "true_positives"
+    "false_positives"
+
+    Every vulnerability finding received from the previous tasks MUST
+    appear exactly once in one of these two arrays.
+
+    For every finding, output exactly these fields:
+
+    "id"
+    "classification"
+    "confidence"
+    "original_finding"
+    "reason"
+    "evidence"
+
+    The "id" must be the original finding ID.
+
+    The "classification" value MUST be exactly one of:
+
+    "true_positive"
+    "false_positive"
+
+    Do not use:
+    "True Positive"
+    "False Positive"
+
+    The "confidence" value MUST be a number between 0.0 and 1.0.
+
+    The "original_finding" field MUST be a JSON OBJECT.
+
+    The original_finding object must contain the complete original
+    vulnerability finding corresponding to the same ID.
+
+    Do not convert original_finding into Markdown.
+    Do not convert original_finding into a string.
+
+    The "reason" field must be a string.
+
+    The "evidence" field must be an array of strings.
+
+    NEVER remove a finding.
+
+    NEVER create a finding.
+
+    NEVER duplicate a finding.
+
+    NEVER merge findings.
+
+    NEVER modify the original finding ID.
+
+    The number of findings in true_positives plus false_positives MUST
+    be exactly equal to the number of input findings.
+
+  expected_output: >
+    A valid JSON object with exactly two top-level keys:
+
+    {
+      "true_positives": [],
+      "false_positives": []
+    }
+
+    Every array element must be a JSON object containing:
+
+    {
+      "id": "original finding ID",
+      "classification": "true_positive or false_positive",
+      "confidence": 0.0,
+      "original_finding": {},
+      "reason": "classification reasoning",
+      "evidence": []
+    }
+
+    Return ONLY valid JSON.
+
+  agent: security_classifier
+
+  context:
+    - analyze_vulnerabilities
+    - validate_classifications
+
+validate_json_output:
+  description: >
+    Validate the structured vulnerability classification produced by the
+    security classifier.
+
+    Verify that the output contains exactly two groups:
+
+    true_positives
+    false_positives
+
+    Verify that every original vulnerability finding appears exactly once.
+
+    Verify that every finding contains:
+
+    - id
+    - classification
+    - confidence
+    - original_finding
+    - reason
+    - evidence
+
+    Verify that classification is either:
+    true_positive
+    false_positive
+
+    Verify that original_finding is an object containing the original
+    vulnerability data.
+
+    Do not create findings.
+
+    Do not remove findings.
+
+    Do not modify findings.
+
+    Do not perform new vulnerability analysis.
+
+    If the structure is invalid, report the structural problems.
+
+    If the structure is valid, confirm that the classification output
+    passed validation.
+
+  expected_output: >
+    A concise validation report describing whether the classification
+    output is structurally valid.
+
+    The report must contain:
+
+    valid: true or false
+
+    issues: a list of structural problems, if any.
+
+  agent: json_validator
+
+  context:
+    - classify_findings

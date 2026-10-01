@@ -1,0 +1,285 @@
+/* --------------------------------------------------------------------------------------------
+ * SonarLint for VisualStudio Code
+ * Copyright (C) SonarSource Sàrl
+ * sonarlint@sonarsource.com
+ * Licensed under the LGPLv3 License. See LICENSE.txt in the project root for license information.
+ * ------------------------------------------------------------------------------------------ */
+'use strict';
+
+import { expect } from 'chai';
+import path from 'path';
+import * as vscode from 'vscode';
+import os from 'node:os';
+import * as sinon from 'sinon';
+import {
+  createAnalysisFilesFromFileUris,
+  findFilesInFolder,
+  getFilesMatchedGlobPatterns,
+  getFilesNotMatchedGlobPatterns,
+  getIdeFileExclusions,
+  getMasterRegex,
+  getQuickPickListItemsForWorkspaceFolders,
+  getVSCodeSettingsBaseDir,
+  globPatternToRegex,
+  isRunningAutoBuild,
+  sanitizeSonarCloudRegionSetting,
+  sonarCloudRegionToLabel,
+  startedInDebugMode
+} from '../../src/util/util';
+
+const sampleFolderLocation = '../../../test/samples/';
+
+const progress: vscode.Progress<any> = {
+  report() { /* NOP */ }
+};
+const cancelToken: vscode.CancellationToken = { isCancellationRequested: false, onCancellationRequested: null };
+
+suite('util', () => {
+  test('should detect --debug', () => {
+    process.execArgv = ['param1', '--debug', 'param2'];
+    expect(startedInDebugMode(process)).to.be.true;
+  });
+
+  test('should detect --debug-brk', () => {
+    process.execArgv = ['param1', '--debug-brk', 'param2'];
+    expect(startedInDebugMode(process)).to.be.true;
+  });
+
+  test('should detect --inspect-brk', () => {
+    process.execArgv = ['param1', '--inspect-brk', 'param2'];
+    expect(startedInDebugMode(process)).to.be.true;
+  });
+
+  test('should fail to detect arg', () => {
+    process.execArgv = ['param1', 'param2'];
+    expect(startedInDebugMode(process)).to.be.false;
+  });
+
+  test('should not have args', () => {
+    process.execArgv = null;
+    expect(startedInDebugMode(process)).to.be.false;
+  });
+
+  test('should recognize build running on ci pipelines', () => {
+    process.env.NODE_ENV = 'continuous-integration';
+    expect(isRunningAutoBuild()).to.be.true;
+  });
+
+  test('should recognize build running locallly', () => {
+    delete process.env.NODE_ENV;
+    expect(isRunningAutoBuild()).to.be.false;
+  });
+
+  test('should find all files in folder', async () => {
+    const folderUri = vscode.Uri.file(path.join(__dirname, sampleFolderLocation));
+
+    const files = await findFilesInFolder(folderUri, cancelToken);
+
+    expect(files.length).to.equal(10);
+  });
+
+  test('should create analysis files from file uris', async () => {
+    const folderUri = vscode.Uri.file(path.join(__dirname, sampleFolderLocation));
+    const fileUris = await findFilesInFolder(folderUri, cancelToken);
+    // @ts-ignore
+    const openDocuments: vscode.TextDocument[] = [{
+      uri: fileUris[3],
+      version: 11,
+      getText(): string {
+        return 'text in editor';
+      },
+      languageId: 'languageFromEditor'
+    }];
+    const analysisFiles = await createAnalysisFilesFromFileUris(fileUris, openDocuments, progress, cancelToken);
+
+    expect(fileUris.length).to.equal(10);
+    expect(analysisFiles.length).to.equal(9);
+    let inlineAnalysisResult = analysisFiles[0].text.replace(/(\r\n|\n|\r)/gm, '');
+    expect(inlineAnalysisResult).to.equal('{    "sonarlint.testFilePattern": "**/test/samples/**/test/**",' +
+      '    "telemetry.enableTelemetry": false}');
+    expect(analysisFiles[0].uri.endsWith('settings.json')).to.be.true;
+    expect(analysisFiles[0].languageId).to.equal('[unknown]');
+    expect(analysisFiles[0].version).to.equal(1);
+    expect(analysisFiles[3].text).to.equal('text in editor');
+    expect(analysisFiles[3].uri.endsWith('main.js')).to.be.true;
+    expect(analysisFiles[3].languageId).to.equal('[unknown]');
+    expect(analysisFiles[3].version).to.equal(11);
+  });
+
+  test('should generate items for quick pick list from workspace folders', async () => {
+    const folderUri = vscode.Uri.file(path.join(__dirname, sampleFolderLocation));
+    const workspaceFolder = {
+      uri: folderUri,
+      name: 'Name',
+      index: 0
+    };
+
+    const quickPickListItems = getQuickPickListItemsForWorkspaceFolders([workspaceFolder]);
+
+    expect(quickPickListItems.length).to.equal(1);
+    expect(quickPickListItems[0].label).to.equal(workspaceFolder.name);
+    expect(quickPickListItems[0].description).to.equal(folderUri.path);
+  });
+
+  test('should convert glob pattern to regex', async () => {
+    expect(globPatternToRegex('**/*.java').source).to.equal('\\.java$');
+    expect(globPatternToRegex('**/*.c++').source).to.equal('^((?:[^/]*(?:\\/|$))*)([^/]*)\\.c\\+\\+$');
+    expect(globPatternToRegex('**/**/*.c++').source).to.equal('^((?:[^/]*(?:\\/|$))*)((?:[^/]*(?:\\/|$))*)([^/]*)\\.c\\+\\+$');
+    expect(globPatternToRegex('/**').source).to.equal('^\\/((?:[^/]*(?:\\/|$))*)$');
+    expect(globPatternToRegex('**/*Bean?.java').source).to.equal('^((?:[^/]*(?:\\/|$))*)([^/]*)Bean.\\.java$');
+  });
+
+  test('should build master regex pattern from array of glob patterns', async () => {
+    const masterRegex = getMasterRegex(['**/*.java', '**/*.php', '**/*.c++']);
+    expect(masterRegex.source).to.equal('\\.java$|\\.php$|^((?:[^/]*(?:\\/|$))*)([^/]*)\\.c\\+\\+$');
+  });
+
+  test('should filter files by glob patterns', async () => {
+    const files: vscode.Uri[] = [];
+    // @ts-ignore
+    files.push({
+      path: 'anyDirectory/anyFile.css'
+    });
+    // @ts-ignore
+    files.push({
+      path: 'org/sonar.api/MyBean.java'
+    });
+    // @ts-ignore
+    files.push({
+      path: 'org/sonar/util/MyDTO.java'
+    });
+    // @ts-ignore
+    files.push({
+      path: 'org/sonar/util/MyOtherBean1.java'
+    });
+    // @ts-ignore
+    files.push({
+      path: 'org/sonar/util/MyOtherBean.java'
+    });
+    // @ts-ignore
+    files.push({
+      path: 'org/sonar/MyClass.java'
+    });
+    // @ts-ignore
+    files.push({
+      path: 'org/sonar/util/MyClassUtil.java'
+    });
+    // @ts-ignore
+    files.push({
+      path: 'org/radar/MyClass.java'
+    });
+
+    let globPatterns = ['**/*.css'];
+    let matchedFiles = getFilesMatchedGlobPatterns(files, globPatterns);
+    let notMatchedFiles = getFilesNotMatchedGlobPatterns(files, globPatterns);
+    expect(matchedFiles.length).to.equal(1);
+    expect(matchedFiles[0].path).to.equal('anyDirectory/anyFile.css');
+    expect(notMatchedFiles.length).to.equal(7);
+
+    globPatterns = ['**/*Bean.java'];
+    matchedFiles = getFilesMatchedGlobPatterns(files, globPatterns);
+    notMatchedFiles = getFilesNotMatchedGlobPatterns(files, globPatterns);
+    expect(matchedFiles.length).to.equal(2);
+    expect(matchedFiles).to.eql([{ path: 'org/sonar.api/MyBean.java' }, { path: 'org/sonar/util/MyOtherBean.java' }]);
+    expect(notMatchedFiles.length).to.equal(6);
+
+    globPatterns = ['**/*Bean?.java'];
+    matchedFiles = getFilesMatchedGlobPatterns(files, globPatterns);
+    notMatchedFiles = getFilesNotMatchedGlobPatterns(files, globPatterns);
+    expect(matchedFiles.length).to.equal(1);
+    expect(matchedFiles[0].path).to.equal('org/sonar/util/MyOtherBean1.java');
+    expect(notMatchedFiles.length).to.equal(7);
+
+    globPatterns = ['org/sonar/*'];
+    matchedFiles = getFilesMatchedGlobPatterns(files, globPatterns);
+    notMatchedFiles = getFilesNotMatchedGlobPatterns(files, globPatterns);
+    expect(matchedFiles.length).to.equal(1);
+    expect(matchedFiles[0].path).to.equal('org/sonar/MyClass.java');
+    expect(notMatchedFiles.length).to.equal(7);
+
+    globPatterns = ['org/sonar/**/*'];
+    matchedFiles = getFilesMatchedGlobPatterns(files, globPatterns);
+    notMatchedFiles = getFilesNotMatchedGlobPatterns(files, globPatterns);
+    expect(matchedFiles.length).to.equal(5);
+    expect(matchedFiles).to.eql([{ path: 'org/sonar/util/MyDTO.java' }, { path: 'org/sonar/util/MyOtherBean1.java' },
+      { path: 'org/sonar/util/MyOtherBean.java' }, { path: 'org/sonar/MyClass.java' }, { path: 'org/sonar/util/MyClassUtil.java' }]);
+    expect(notMatchedFiles.length).to.equal(3);
+  });
+
+  test('should filter files by ide exclusions', async () => {
+    const excludes = {
+      '**/*.foo': true,
+      '**/*.bar': true,
+      '**/*.baz': false
+    };
+
+    const excludedPatterns = getIdeFileExclusions(excludes);
+
+    expect(excludedPatterns.length).to.equal(2);
+    expect(excludedPatterns[0]).to.equal('**/*.foo');
+    expect(excludedPatterns[1]).to.equal('**/*.bar');
+  });
+
+  test('should convert SonarCloudRegion enum to label', () => {
+    expect(sonarCloudRegionToLabel(0)).to.equal('EU');
+    expect(sonarCloudRegionToLabel(1)).to.equal('US');
+    expect(sonarCloudRegionToLabel(2)).to.equal('EU');
+    expect(sonarCloudRegionToLabel(null)).to.equal('EU');
+  });
+
+  test('should sanitize SonarCloudRegion user setting', () => {
+    expect(sanitizeSonarCloudRegionSetting('EU')).to.equal('EU');
+    expect(sanitizeSonarCloudRegionSetting('eu')).to.equal('EU');
+    expect(sanitizeSonarCloudRegionSetting('US')).to.equal('US');
+    expect(sanitizeSonarCloudRegionSetting('us')).to.equal('US');
+    expect(sanitizeSonarCloudRegionSetting('APJ')).to.equal('EU');
+  });
+
+  test('should return correct VSCode settings base directory for each platform', () => {
+    // Store original values to restore later
+    const originalAppData = process.env.APPDATA;
+
+    // Mock os.platform, os.homedir, and path.join functions
+    const osPlatformStub = sinon.stub(os, 'platform');
+    const osHomedirStub = sinon.stub(os, 'homedir');
+    const pathJoinStub = sinon.stub(path, 'join');
+
+    try {
+      // Test Windows with APPDATA environment variable
+      osPlatformStub.returns('win32');
+      osHomedirStub.returns('C:\\Users\\User');
+      process.env.APPDATA = 'C:\\Users\\User\\AppData\\Roaming';
+      expect(getVSCodeSettingsBaseDir()).to.equal('C:\\Users\\User\\AppData\\Roaming');
+
+      // Test Windows without APPDATA environment variable
+      delete process.env.APPDATA;
+      osHomedirStub.returns('C:\\Users\\User');
+      pathJoinStub.withArgs('C:\\Users\\User', 'AppData', 'Roaming').returns('C:\\Users\\User\\AppData\\Roaming');
+      expect(getVSCodeSettingsBaseDir()).to.equal('C:\\Users\\User\\AppData\\Roaming');
+
+      // Test macOS (darwin)
+      osPlatformStub.returns('darwin');
+      osHomedirStub.returns('/Users/user');
+      pathJoinStub.withArgs('/Users/user', 'Library', 'Application Support').returns('/Users/user/Library/Application Support');
+      expect(getVSCodeSettingsBaseDir()).to.equal('/Users/user/Library/Application Support');
+
+      // Test Linux
+      osPlatformStub.returns('linux');
+      osHomedirStub.returns('/home/user');
+      pathJoinStub.withArgs('/home/user', '.config').returns('/home/user/.config');
+      expect(getVSCodeSettingsBaseDir()).to.equal('/home/user/.config');
+
+    } finally {
+      // Restore original values
+      osPlatformStub.restore();
+      osHomedirStub.restore();
+      pathJoinStub.restore();
+      if (originalAppData !== undefined) {
+        process.env.APPDATA = originalAppData;
+      } else {
+        delete process.env.APPDATA;
+      }
+    }
+  });
+
+});

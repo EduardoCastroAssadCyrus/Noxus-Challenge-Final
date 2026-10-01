@@ -1,0 +1,522 @@
+{
+  "$defs": {
+    "Asset": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "default": "web-api",
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Type",
+          "type": "string"
+        },
+        "repository_url": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Repository Url",
+          "type": "string"
+        },
+        "branch": {
+          "default": "main",
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Branch",
+          "type": "string"
+        },
+        "commit": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-fA-F]{7,64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Commit"
+        },
+        "local_ip": {
+          "anyOf": [
+            {
+              "maxLength": 1024,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Local Ip"
+        },
+        "application_url": {
+          "anyOf": [
+            {
+              "maxLength": 1024,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Application Url"
+        },
+        "consumed_apis": {
+          "items": {
+            "$ref": "#/$defs/ConsumedAPI"
+          },
+          "maxItems": 100,
+          "title": "Consumed Apis",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "repository_url"
+      ],
+      "title": "Asset",
+      "type": "object"
+    },
+    "ConsumedAPI": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "base_url": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Base Url",
+          "type": "string"
+        },
+        "source": {
+          "default": "manual",
+          "enum": [
+            "manual",
+            "detected"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "base_url"
+      ],
+      "title": "ConsumedAPI",
+      "type": "object"
+    },
+    "Dependency": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 1024,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "ecosystem": {
+          "anyOf": [
+            {
+              "maxLength": 1024,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ecosystem"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Dependency",
+      "type": "object"
+    },
+    "Developer": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "maxLength": 1024,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        },
+        "team": {
+          "anyOf": [
+            {
+              "maxLength": 1024,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Team"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Developer",
+      "type": "object"
+    },
+    "Finding": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "maxLength": 8000,
+          "title": "Description",
+          "type": "string"
+        },
+        "rule_id": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "enum": [
+                "critical",
+                "high",
+                "medium",
+                "low",
+                "info"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Severity"
+        },
+        "cwe": {
+          "items": {
+            "pattern": "^CWE-\\d+$",
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Cwe",
+          "type": "array"
+        },
+        "cve": {
+          "items": {
+            "pattern": "^CVE-\\d{4}-\\d{4,}$",
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Cve",
+          "type": "array"
+        },
+        "location": {
+          "$ref": "#/$defs/Location"
+        },
+        "dependency": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Dependency"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "recommendation": {
+          "anyOf": [
+            {
+              "maxLength": 8000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recommendation"
+        }
+      },
+      "required": [
+        "title",
+        "rule_id",
+        "location"
+      ],
+      "title": "Finding",
+      "type": "object"
+    },
+    "Location": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "anyOf": [
+            {
+              "maxLength": 1024,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "File"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line"
+        },
+        "column": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Column"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 1024,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "title": "Location",
+      "type": "object"
+    },
+    "Scan": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "tool": {
+          "enum": [
+            "semgrep",
+            "gitleaks",
+            "dependency-check",
+            "nikto",
+            "sonar",
+            "dependency-reputation",
+            "extension-reputation"
+          ],
+          "title": "Tool",
+          "type": "string"
+        },
+        "tool_version": {
+          "anyOf": [
+            {
+              "maxLength": 1024,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool Version"
+        },
+        "category": {
+          "enum": [
+            "SAST",
+            "DAST",
+            "SCA",
+            "SECRET",
+            "EXTENSION"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "finished_at": {
+          "format": "date-time",
+          "title": "Finished At",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "partial",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "trigger": {
+          "default": "manual",
+          "enum": [
+            "manual",
+            "startup",
+            "file-change",
+            "dependency-change",
+            "commit",
+            "app-online",
+            "scheduled",
+            "ide-save",
+            "ide-change",
+            "extension-change"
+          ],
+          "title": "Trigger",
+          "type": "string"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        }
+      },
+      "required": [
+        "id",
+        "tool",
+        "category",
+        "started_at",
+        "finished_at",
+        "status"
+      ],
+      "title": "Scan",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source": {
+      "enum": [
+        "noxus-agent",
+        "noxus-vscode-extension"
+      ],
+      "title": "Source",
+      "type": "string"
+    },
+    "developer": {
+      "$ref": "#/$defs/Developer"
+    },
+    "asset": {
+      "$ref": "#/$defs/Asset"
+    },
+    "scan": {
+      "$ref": "#/$defs/Scan"
+    },
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/Finding"
+      },
+      "maxItems": 20000,
+      "title": "Findings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "source",
+    "developer",
+    "asset",
+    "scan",
+    "findings"
+  ],
+  "title": "ScanEnvelope",
+  "type": "object"
+}

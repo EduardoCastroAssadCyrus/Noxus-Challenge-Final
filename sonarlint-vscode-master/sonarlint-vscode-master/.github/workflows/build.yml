@@ -1,0 +1,450 @@
+name: Build
+on:
+  push:
+    branches:
+      - master
+      - branch-*
+      - dogfood-*
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: github-ubuntu-latest-s
+    name: Prepare
+    outputs:
+      BRANCH_NAME: ${{ steps.branch-name.outputs.BRANCH_NAME }}
+    steps:
+      - uses: SonarSource/ci-github-actions/get-build-number@21206070b4306949454171904b8d2b4ec349b0c5 # v2
+
+      - name: Get branch name
+        id: branch-name
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_OUTPUT
+          else
+            echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    runs-on: github-ubuntu-latest-s
+    name: Build
+    needs: prepare
+    outputs:
+      PACKAGE_VERSION: ${{ steps.project_version.outputs.PACKAGE_VERSION }}
+      PROJECT_VERSION: ${{ steps.project_version.outputs.PROJECT_VERSION }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.8.9
+
+      - name: Vault Secrets
+        id: secrets
+        uses: SonarSource/vault-action-wrapper@v3
+        with:
+          secrets: |
+            development/kv/data/repox url | ARTIFACTORY_URL;
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader username | ARTIFACTORY_USER;
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader access_token | ARTIFACTORY_ACCESS_TOKEN; 
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-qa-deployer access_token | ARTIFACTORY_DEPLOY_PASSWORD;
+            development/kv/data/sign key | SIGN_KEY;
+            development/kv/data/sign passphrase | PGP_PASSPHRASE;
+            development/kv/data/sentry/sq-ide-upload token | SENTRY_UPLOAD_TOKEN;
+
+      - uses: SonarSource/ci-github-actions/get-build-number@21206070b4306949454171904b8d2b4ec349b0c5 # v2
+
+      - name: Get project version
+        id: project_version
+        run: |
+          PACKAGE_VERSION=$(npm pkg get version | tr -d \" )
+          echo "PACKAGE_VERSION=${PACKAGE_VERSION}" >> $GITHUB_OUTPUT
+          echo "PROJECT_VERSION=${PACKAGE_VERSION}+${BUILD_NUMBER}" >> $GITHUB_OUTPUT
+
+      - name: Update GitHub Actions Summary
+        run: |
+          echo "## 📦 Build Information" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Package Version** | \`${{ steps.project_version.outputs.PACKAGE_VERSION }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Project Version** | \`${{ steps.project_version.outputs.PROJECT_VERSION }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Build Number** | \`${BUILD_NUMBER}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | \`${{ needs.prepare.outputs.BRANCH_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Cache NPM dependencies
+        uses: SonarSource/gh-action_cache@v1
+        with:
+          path: |
+            ~/.npm
+            node_modules/
+          key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}
+
+      - name: Cache JAR dependencies
+        uses: SonarSource/gh-action_cache@v1
+        with:
+          path: |
+            server/
+            analyzers/
+            eslint-bridge/
+          key: jars-${{ runner.os }}-${{ hashFiles('package.json') }}
+          restore-keys: jars-${{ runner.os }}
+
+      - name: Prepare build
+        env:
+          ARTIFACTORY_PRIVATE_READER_USERNAME: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_USER }}
+          ARTIFACTORY_PRIVATE_READER_PASSWORD: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+          NPM_CONFIG_registry: https://repox.jfrog.io/artifactory/api/npm/npm
+          NPM_CONFIG_//repox.jfrog.io/artifactory/api/npm/:_authToken: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+        run: |
+          npm ci
+
+      - name: Deploy universal VSIX
+        if: ${{ github.ref_name != github.event.repository.default_branch && !endsWith(github.ref_name, 'allvsix') }}
+        shell: bash
+        env:
+          ARTIFACTORY_URL: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_URL }}
+          ARTIFACTORY_PRIVATE_READER_USERNAME: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_USER }}
+          ARTIFACTORY_PRIVATE_READER_PASSWORD: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+          ARTIFACTORY_DEPLOY_USERNAME: vault-${{ github.repository_owner }}-${{ github.event.repository.name }}-qa-deployer
+          ARTIFACTORY_DEPLOY_PASSWORD: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_DEPLOY_PASSWORD }}
+          ARTIFACTORY_DEPLOY_REPO: sonarsource-public-qa
+          NPM_CONFIG_registry: https://repox.jfrog.io/artifactory/api/npm/npm
+          NPM_CONFIG_//repox.jfrog.io/artifactory/api/npm/:_authToken: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+          GPG_SIGNING_KEY: ${{ fromJSON(steps.secrets.outputs.vault).SIGN_KEY }}
+          GPG_SIGNING_PASSPHRASE: ${{ fromJSON(steps.secrets.outputs.vault).PGP_PASSPHRASE }}
+          SENTRY_UPLOAD_TOKEN: ${{ fromJSON(steps.secrets.outputs.vault).SENTRY_UPLOAD_TOKEN }}
+          GITHUB_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: npm run deploy-universal
+
+      - name: Deploy all VSIX
+        if: ${{ github.ref_name == github.event.repository.default_branch || endsWith(github.ref_name, 'allvsix') }}
+        shell: bash
+        env:
+          ARTIFACTORY_URL: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_URL }}
+          ARTIFACTORY_PRIVATE_READER_USERNAME: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_USER }}
+          ARTIFACTORY_PRIVATE_READER_PASSWORD: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+          ARTIFACTORY_DEPLOY_USERNAME: vault-${{ github.repository_owner }}-${{ github.event.repository.name }}-qa-deployer
+          ARTIFACTORY_DEPLOY_PASSWORD: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_DEPLOY_PASSWORD }}
+          ARTIFACTORY_DEPLOY_REPO: sonarsource-public-qa
+          NPM_CONFIG_registry: https://repox.jfrog.io/artifactory/api/npm/npm
+          NPM_CONFIG_//repox.jfrog.io/artifactory/api/npm/:_authToken: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+          GPG_SIGNING_KEY: ${{ fromJSON(steps.secrets.outputs.vault).SIGN_KEY }}
+          GPG_SIGNING_PASSPHRASE: ${{ fromJSON(steps.secrets.outputs.vault).PGP_PASSPHRASE }}
+          SENTRY_UPLOAD_TOKEN: ${{ fromJSON(steps.secrets.outputs.vault).SENTRY_UPLOAD_TOKEN }}
+          GITHUB_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: npm run deploy-all
+
+      - name: Upload VSIX artifact for QA tests
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: universal-vsix-qa-artifact
+          path: sonarlint-vscode-${{ steps.project_version.outputs.PACKAGE_VERSION }}.vsix
+          retention-days: 1
+
+  test-linux:
+    runs-on: github-ubuntu-latest-m
+    name: Run tests on Linux
+    needs: prepare
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.8.9
+
+      - name: Vault Secrets
+        id: secrets
+        uses: SonarSource/vault-action-wrapper@v3
+        with:
+          secrets: |
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader username | ARTIFACTORY_USER;
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader access_token | ARTIFACTORY_ACCESS_TOKEN;
+            development/kv/data/next url | SONAR_URL;
+            development/kv/data/next token | SONAR_TOKEN;
+
+      - uses: SonarSource/ci-github-actions/get-build-number@21206070b4306949454171904b8d2b4ec349b0c5 # v2
+
+      - name: Cache NPM dependencies
+        uses: SonarSource/gh-action_cache@v1
+        with:
+          path: |
+            ~/.npm
+            node_modules/
+          key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}
+
+      - name: Cache JAR dependencies
+        uses: SonarSource/gh-action_cache@v1
+        with:
+          path: |
+            server/
+            analyzers/
+            eslint-bridge/
+          key: jars-${{ runner.os }}-${{ hashFiles('package.json') }}
+          restore-keys: jars-${{ runner.os }}
+
+      - name: Prepare xvfb and ffmpeg
+        run: mise run install-system-deps
+
+      - name: Prepare project
+        env:
+          ARTIFACTORY_PRIVATE_READER_USERNAME: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_USER }}
+          ARTIFACTORY_PRIVATE_READER_PASSWORD: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+          NPM_CONFIG_registry: https://repox.jfrog.io/artifactory/api/npm/npm
+          NPM_CONFIG_//repox.jfrog.io/artifactory/api/npm/:_authToken: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+        run: |
+          npm ci
+          npm run compile
+          npm run prepare
+
+      - name: Run tests with coverage
+        env:
+          DISPLAY: ":10"
+          VIDEO_FILE: "vscode_test-linux_${{ github.run_id }}.mp4"
+          SCREEN_SIZE: "1280x960"
+        run: .github/scripts/run-with-video.sh npm run test-cov
+
+      - name: Upload tests recording
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linux-test-recording
+          path: vscode_test-linux_${{ github.run_id }}.mp4
+
+      - name: Analyze on SonarQubeServerNext
+        env:
+          SONAR_URL: ${{ fromJSON(steps.secrets.outputs.vault).SONAR_URL }}
+          SONAR_TOKEN: ${{ fromJSON(steps.secrets.outputs.vault).SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: "org.sonarsource.sonarlint.vscode:sonarlint-vscode"
+        run: |
+          .github/scripts/sonarqube-analysis.sh
+
+  test-windows:
+    runs-on: github-windows-latest-s
+    name: Run tests on Windows
+    needs: prepare
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.8.9
+
+      - name: Vault Secrets
+        id: secrets
+        uses: SonarSource/vault-action-wrapper@v3
+        with:
+          secrets: |
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader username | ARTIFACTORY_USER;
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader access_token | ARTIFACTORY_ACCESS_TOKEN;
+            development/kv/data/next url | SONAR_URL;
+            development/kv/data/next token | SONAR_TOKEN;
+
+      - name: Cache NPM dependencies
+        uses: SonarSource/gh-action_cache@v1
+        with:
+          path: |
+            ~/.npm
+            node_modules/
+          key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}
+
+      - name: Cache JAR dependencies
+        uses: SonarSource/gh-action_cache@v1
+        with:
+          path: |
+            server/
+            analyzers/
+            eslint-bridge/
+          key: jars-${{ runner.os }}-${{ hashFiles('package.json') }}
+          restore-keys: jars-${{ runner.os }}
+
+      - name: Run tests with coverage
+        env:
+          ARTIFACTORY_PRIVATE_READER_USERNAME: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_USER }}
+          ARTIFACTORY_PRIVATE_READER_PASSWORD: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+          NPM_CONFIG_registry: https://repox.jfrog.io/artifactory/api/npm/npm
+          NPM_CONFIG_//repox.jfrog.io/artifactory/api/npm/:_authToken: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+        run: |
+          npm ci
+          npm run compile
+          npm run prepare
+          npm run test-cov
+
+  qa-tests:
+    runs-on: github-ubuntu-latest-m
+    name: Run ITs - ${{ matrix.qa_category }}
+    needs:
+      - prepare
+      - build
+    if: ${{ !cancelled() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - qa_category: oldest
+            vscode_version: '1.100.0'
+          - qa_category: stable
+            vscode_version: 'stable'
+          - qa_category: insiders
+            vscode_version: 'insiders'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.8.9
+
+      - name: Vault Secrets
+        id: secrets
+        uses: SonarSource/vault-action-wrapper@v3
+        with:
+          secrets: |
+            development/kv/data/repox url | ARTIFACTORY_URL;
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader username | ARTIFACTORY_USER;
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader access_token | ARTIFACTORY_ACCESS_TOKEN;
+
+      - name: Cache NPM dependencies
+        uses: SonarSource/gh-action_cache@v1
+        with:
+          path: |
+            ~/.npm
+            node_modules/
+          key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}
+
+      - name: Cache JAR dependencies
+        uses: SonarSource/gh-action_cache@v1
+        with:
+          path: |
+            server/
+            analyzers/
+            eslint-bridge/
+          key: jars-${{ runner.os }}-${{ hashFiles('package.json') }}
+          restore-keys: jars-${{ runner.os }}
+
+      - name: Prepare xvfb and ffmpeg
+        run: mise run install-system-deps
+
+      - name: Setup .NET SDK
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}/dotnet-it
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.401'
+
+      - name: Pin dotnet for integration tests
+        run: |
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> "$GITHUB_ENV"
+          echo "DOTNET_ROOT=${{ runner.tool_cache }}/dotnet-it" >> "$GITHUB_ENV"
+          echo "${{ runner.tool_cache }}/dotnet-it" >> "$GITHUB_PATH"
+
+      - name: Download VSIX artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: universal-vsix-qa-artifact
+
+      - name: Prepare integration tests
+        env:
+          ARTIFACTORY_PRIVATE_READER_USERNAME: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_USER }}
+          ARTIFACTORY_PRIVATE_READER_PASSWORD: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+          NPM_CONFIG_registry: https://repox.jfrog.io/artifactory/api/npm/npm
+          NPM_CONFIG_//repox.jfrog.io/artifactory/api/npm/:_authToken: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+        run: |
+          npm ci
+          npm run compile
+          npm run prepare
+          cd its
+          npm ci
+
+      - name: Run integration tests with recording
+        env:
+          DISPLAY: ":10"
+          VIDEO_FILE: "vscode_qa-tests-${{ matrix.qa_category }}_${{ github.run_id }}.mp4"
+          SCREEN_SIZE: "1280x960"
+          VSCODE_VERSION: ${{ matrix.vscode_version }}
+        run: |
+          cd its
+          ../.github/scripts/run-with-video.sh npm test
+
+      - name: Upload test recording
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: its-test-recording-${{ matrix.qa_category }}
+          path: its/vscode_qa-tests-${{ matrix.qa_category }}_${{ github.run_id }}.mp4
+
+  promote:
+    runs-on: github-ubuntu-latest-s
+    name: Promote
+    needs:
+      - prepare
+      - build
+      - test-linux
+      - test-windows
+      - qa-tests
+    if: ${{ github.event_name == 'pull_request' || github.ref_name == github.event.repository.default_branch || startsWith(github.ref_name, 'branch-') || startsWith(github.ref_name, 'dogfood-on-') }}
+    steps:
+      - uses: SonarSource/ci-github-actions/promote@21206070b4306949454171904b8d2b4ec349b0c5 # v2
+        env:
+          PROJECT_VERSION: ${{ needs.build.outputs.PROJECT_VERSION }}
+        with:
+          promote-pull-request: true
+
+  dogfood:
+    runs-on: github-ubuntu-latest-s
+    name: Dogfood
+    needs:
+      - prepare
+      - build
+      - promote
+    if: ${{ github.ref_name == github.event.repository.default_branch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.8.9
+
+      - name: Vault Secrets
+        id: secrets
+        uses: SonarSource/vault-action-wrapper@v3
+        with:
+          secrets: |
+            development/kv/data/repox url | ARTIFACTORY_URL;
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-promoter access_token | ARTIFACTORY_API_KEY;
+
+      - uses: SonarSource/ci-github-actions/get-build-number@21206070b4306949454171904b8d2b4ec349b0c5 # v2
+
+      - name: Create dogfood.json
+        env:
+          PACKAGE_VERSION: ${{ needs.build.outputs.PACKAGE_VERSION }}
+          VERSION_WITH_BUILDNUMBER: ${{ needs.build.outputs.PROJECT_VERSION }}
+        run: |
+          cat > dogfood.json << EOF
+          {
+            "version": "${VERSION_WITH_BUILDNUMBER}",
+            "url": "https://repox.jfrog.io/artifactory/sonarsource/org/sonarsource/sonarlint/vscode/sonarlint-vscode/${VERSION_WITH_BUILDNUMBER}/sonarlint-vscode-${PACKAGE_VERSION}.vsix"
+          }
+          EOF
+          cat dogfood.json
+
+      - name: Upload dogfood.json to Artifactory
+        env:
+          ARTIFACTORY_URL: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_URL }}
+          ARTIFACTORY_API_KEY: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_API_KEY }}
+        run: |
+          jf rt u dogfood.json sonarsource-public-builds/org/sonarsource/sonarlint/vscode/sonarlint-vscode/ \
+            --url "${ARTIFACTORY_URL}" --access-token "${ARTIFACTORY_API_KEY}" \
+            --build-name "${{ github.event.repository.name }}" --build-number "${BUILD_NUMBER}"

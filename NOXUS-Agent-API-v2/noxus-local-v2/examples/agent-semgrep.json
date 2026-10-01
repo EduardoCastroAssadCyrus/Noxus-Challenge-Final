@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "source": "noxus-agent",
+  "developer": {
+    "name": "Eduardo",
+    "role": "Desenvolvedor",
+    "team": "Back-End"
+  },
+  "asset": {
+    "id": "noxus-backend",
+    "name": "Backend Noxus",
+    "type": "web-api",
+    "repository_url": "https://github.com/equipe/noxus-backend",
+    "branch": "main",
+    "commit": null,
+    "local_ip": "127.0.0.1",
+    "application_url": "http://localhost:8080",
+    "consumed_apis": [
+      {
+        "name": "Pagamentos",
+        "base_url": "https://api.exemplo.com",
+        "source": "manual"
+      }
+    ]
+  },
+  "scan": {
+    "id": "5d226b53-5701-4dc0-aca0-c9feb31528c6",
+    "tool": "semgrep",
+    "tool_version": null,
+    "category": "SAST",
+    "started_at": "2026-09-30T22:40:00-03:00",
+    "finished_at": "2026-09-30T22:40:12-03:00",
+    "status": "completed",
+    "trigger": "manual",
+    "error": null
+  },
+  "findings": [
+    {
+      "title": "Possível SQL Injection (exemplo)",
+      "description": "Exemplo sintético de entrada concatenada em SQL.",
+      "rule_id": "example.sql-injection",
+      "severity": "high",
+      "cwe": [
+        "CWE-89"
+      ],
+      "cve": [],
+      "location": {
+        "file": "src/database.py",
+        "line": 42,
+        "column": null,
+        "url": null
+      },
+      "dependency": null,
+      "recommendation": null
+    }
+  ]
+}

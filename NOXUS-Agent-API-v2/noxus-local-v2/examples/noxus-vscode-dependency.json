@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0",
+  "source": "noxus-vscode-extension",
+  "developer": {
+    "name": "Eduardo",
+    "role": "Desenvolvedor",
+    "team": "Back-End"
+  },
+  "asset": {
+    "id": "noxus-backend",
+    "name": "Backend Noxus",
+    "type": "web-api",
+    "repository_url": "https://github.com/equipe/noxus-backend",
+    "branch": "main",
+    "commit": null,
+    "local_ip": "127.0.0.1",
+    "application_url": "http://localhost:8080",
+    "consumed_apis": [
+      {
+        "name": "Pagamentos",
+        "base_url": "https://api.exemplo.com",
+        "source": "manual"
+      }
+    ]
+  },
+  "scan": {
+    "id": "cc1faab0-cf04-4589-8694-f4989301f881",
+    "tool": "dependency-reputation",
+    "tool_version": null,
+    "category": "SCA",
+    "started_at": "2026-09-30T22:40:00-03:00",
+    "finished_at": "2026-09-30T22:40:12-03:00",
+    "status": "completed",
+    "trigger": "dependency-change",
+    "error": null
+  },
+  "findings": [
+    {
+      "title": "Exemplo sintético de dependência",
+      "description": "",
+      "rule_id": "example.dependency",
+      "severity": null,
+      "cwe": [],
+      "cve": [],
+      "location": {
+        "file": "package-lock.json",
+        "line": null,
+        "column": null,
+        "url": null
+      },
+      "dependency": {
+        "name": "example-package",
+        "version": "1.0.0",
+        "ecosystem": "npm"
+      },
+      "recommendation": null
+    }
+  ]
+}

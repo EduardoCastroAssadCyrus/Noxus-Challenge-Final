@@ -1,0 +1,7 @@
+.env
+.env.noxus
+.venv/
+__pycache__/
+output/
+input/
+.noxus-backup/
