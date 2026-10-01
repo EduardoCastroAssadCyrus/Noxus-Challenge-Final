@@ -5,7 +5,7 @@ Os comandos abaixo correspondem ao código existente nesta entrega.
 
 ## 1. O que o projeto faz
 
-O Noxus ASPM centraliza achados de segurança, relaciona os relatórios aos ativos cadastrados e oferece triagem assistida por IA. O uso atual é individual, no próprio computador, com persistência em arquivos JSON.
+O Noxus ASPM centraliza achados de segurança, relaciona os relatórios aos ativos cadastrados e oferece triagem assistida por IA. Atualmente é apenas um MVP, com uso atual sendo individual, no próprio computador, com persistência em arquivos JSON.
 
 ```text
 Código/aplicação local
