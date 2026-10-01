@@ -1,0 +1,25 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>SonarSource/renovate-config:ide-xp-team"
+  ],
+  "ignorePaths": [
+    "its/samples/**"
+  ],
+  "packageRules": [
+    {
+      "description": "Keep @types/node aligned with the Node.js version bundled in the minimum supported VS Code (1.100 ships Node 20)",
+      "matchPackageNames": ["@types/node"],
+      "allowedVersions": "<21"
+    }
+  ],
+  "npmrc": "registry=https://repox.jfrog.io/artifactory/api/npm/npm",
+  "npmrcMerge": true,
+  "hostRules": [
+    {
+      "hostType": "npm",
+      "matchHost": "repox.jfrog.io",
+      "token": "{{ secrets.REPOX_TOKEN }}"
+    }
+  ]
+}

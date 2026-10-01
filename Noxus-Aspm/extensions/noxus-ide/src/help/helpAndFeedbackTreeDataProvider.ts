@@ -1,0 +1,60 @@
+/* --------------------------------------------------------------------------------------------
+ * SonarLint for VisualStudio Code
+ * Copyright (C) SonarSource Sàrl
+ * sonarlint@sonarsource.com
+ * Licensed under the LGPLv3 License. See LICENSE.txt in the project root for license information.
+ * ------------------------------------------------------------------------------------------ */
+'use strict';
+
+import * as VSCode from 'vscode';
+import { Commands } from '../util/commands';
+import { HelpAndFeedbackItem, helpAndFeedbackItems } from './constants';
+import { IDE_LABS_ENABLED_SETTING, IdeLabsFlagManagementService } from '../labs/ideLabsFlagManagementService';
+
+export function getHelpAndFeedbackItemById(id: string): HelpAndFeedbackItem {
+  return helpAndFeedbackItems.find(i => i.id === id);
+}
+
+export class HelpAndFeedbackLink extends VSCode.TreeItem {
+  constructor(public readonly id: string) {
+    const itemById = getHelpAndFeedbackItemById(id);
+    super(itemById.label, VSCode.TreeItemCollapsibleState.None);
+    this.iconPath = new VSCode.ThemeIcon(itemById.icon);
+    this.command = {
+      command: Commands.TRIGGER_HELP_AND_FEEDBACK_LINK,
+      title: 'Trigger Help and Feedback Link',
+      arguments: [itemById]
+    };
+  }
+}
+
+export class HelpAndFeedbackTreeDataProvider implements VSCode.TreeDataProvider<HelpAndFeedbackLink> {
+  private readonly _onDidChangeTreeData = new VSCode.EventEmitter<HelpAndFeedbackLink | undefined>();
+  readonly onDidChangeTreeData: VSCode.Event<HelpAndFeedbackLink | undefined> = this._onDidChangeTreeData.event;
+
+  constructor(subscriptions: VSCode.Disposable[]) {
+    subscriptions.push(
+      VSCode.workspace.onDidChangeConfiguration(event => {
+        if (event.affectsConfiguration(IDE_LABS_ENABLED_SETTING)) {
+          this.refresh();
+        }
+      })
+    );
+  }
+
+  refresh() {
+    this._onDidChangeTreeData.fire(null);
+  }
+
+  getChildren(element?: HelpAndFeedbackLink): HelpAndFeedbackLink[] {
+    const isLabsEnabled = IdeLabsFlagManagementService.instance.isIdeLabsEnabled();
+    return helpAndFeedbackItems
+      .filter(item => item.viewItem)
+      .filter(item => !item.labsOnly || isLabsEnabled)
+      .map(item => new HelpAndFeedbackLink(item.id));
+  }
+
+  getTreeItem(element: HelpAndFeedbackLink): VSCode.TreeItem {
+    return element;
+  }
+}

@@ -1,0 +1,300 @@
+/* --------------------------------------------------------------------------------------------
+ * SonarLint for VisualStudio Code
+ * Copyright (C) SonarSource Sàrl
+ * sonarlint@sonarsource.com
+ * Licensed under the LGPLv3 License. See LICENSE.txt in the project root for license information.
+ * ------------------------------------------------------------------------------------------ */
+'use strict';
+import * as VSCode from 'vscode';
+import { LanguageClient } from 'vscode-languageclient/node';
+import { ServerMode } from '../java/java';
+import { code2ProtocolConverter } from '../util/uri';
+import { ExtendedServer, AnalysisFile, ShowRuleDescriptionParams } from './protocol';
+import { AiIntegration } from './aiIntegrationProtocol';
+import { SonarCloudRegion } from '../settings/connectionsettings';
+
+export class SonarLintExtendedLanguageClient extends LanguageClient {
+
+  listAllRules(): Thenable<ExtendedServer.RulesResponse> {
+    return this.sendRequest(ExtendedServer.ListAllRulesRequest.type);
+  }
+
+  didClasspathUpdate(projectRoot: VSCode.Uri): void {
+    const projectUri = code2ProtocolConverter(projectRoot);
+    void this.sendNotification(ExtendedServer.DidClasspathUpdateNotification.type, { projectUri });
+  }
+
+  didJavaServerModeChange(serverMode: ServerMode) {
+    void this.sendNotification(ExtendedServer.DidJavaServerModeChangeNotification.type, { serverMode });
+  }
+
+  didLocalBranchNameChange(folderRoot: VSCode.Uri, branchName?: string) {
+    const folderUri = code2ProtocolConverter(folderRoot);
+    void this.sendNotification(ExtendedServer.DidLocalBranchNameChangeNotification.type, { folderUri, branchName });
+  }
+
+  checkConnection(connectionId: string) {
+    return this.sendRequest(ExtendedServer.CheckConnection.type, { connectionId });
+  }
+
+  checkNewConnection(token: string, serverOrOrganization: string, isSonarQube: boolean, region?: SonarCloudRegion) {
+    const params = isSonarQube
+      ? { token, serverUrl: serverOrOrganization }
+      : { token, organization: serverOrOrganization, region };
+    return this.sendRequest(ExtendedServer.CheckConnection.type, params);
+  }
+
+  getRemoteProjectNamesByKeys(connectionId: string, projectKeys: Array<string>) {
+    return this.sendRequest(ExtendedServer.GetRemoteProjectNamesByProjectKeys.type, { connectionId, projectKeys });
+  }
+
+  onTokenUpdate(connectionId: string, token: string) {
+    return this.sendNotification(ExtendedServer.OnTokenUpdate.type, { connectionId, token });
+  }
+
+  getRemoteProjectsForConnection(connectionId: string) {
+    return this.sendRequest(ExtendedServer.GetRemoteProjectsForConnection.type, { connectionId });
+  }
+
+  generateToken(baseServerUrl: string): Promise<ExtendedServer.GenerateTokenResponse> {
+    return this.sendRequest(ExtendedServer.GenerateToken.type, { baseServerUrl });
+  }
+
+  showHotspotLocations(hotspotKey: string, fileUri: string): void {
+    void this.sendRequest(ExtendedServer.ShowHotspotLocations.type, { hotspotKey, fileUri });
+  }
+
+  showHotspotRuleDescription(hotspotId: string, fileUri: string) {
+    void this.sendNotification(ExtendedServer.ShowHotspotRuleDescriptionNotification.type, { hotspotId, fileUri });
+  }
+
+  openHotspotOnServer(hotspotId: string, fileUri: string) {
+    void this.sendNotification(ExtendedServer.OpenHotspotOnServer.type, { hotspotId, fileUri });
+  }
+
+  openDependencyRiskInBrowser(folderUri: string, issueId: string) {
+    void this.sendNotification(ExtendedServer.OpenDependencyRiskInBrowser.type, { folderUri, issueId });
+  }
+
+  dependencyRiskInvestigatedLocally() {
+    void this.sendNotification(ExtendedServer.DependencyRiskInvestigatedLocally.type);
+  }
+
+  getDependencyRiskTransitions(dependencyRiskId: string): Promise<ExtendedServer.GetDependencyRiskTransitionsResponse> {
+    return this.sendRequest(ExtendedServer.GetDependencyRiskTransitions.type, { dependencyRiskId });
+  }
+
+  helpAndFeedbackLinkClicked(itemId: string) {
+    void this.sendNotification(ExtendedServer.HelpAndFeedbackLinkClicked.type, { id: itemId });
+  }
+
+  lmToolCalled(toolName: string, success: boolean) {
+    void this.sendNotification(ExtendedServer.LMToolCalled.type, { toolName, success });
+  }
+
+  scanFolderForHotspots(params: ExtendedServer.ScanFolderForHotspotsParams) {
+    void this.sendNotification(ExtendedServer.ScanFolderForHotspots.type, params);
+  }
+
+  forgetFolderHotspots() {
+    void this.sendNotification(ExtendedServer.ForgetFolderHotspots.type);
+  }
+
+  getFilePatternsForAnalysis(folderUri: string): Promise<ExtendedServer.GetFilePatternsForAnalysisResponse> {
+    return this.sendRequest(ExtendedServer.GetFilePatternsForAnalysis.type, { uri: folderUri });
+  }
+
+  getAllowedHotspotStatuses(
+    hotspotKey: string,
+    folderUri: string,
+    fileUri: string
+  ): Promise<ExtendedServer.GetAllowedHotspotStatusesResponse> {
+    return this.sendRequest(ExtendedServer.GetAllowedHotspotStatuses.type, { hotspotKey, folderUri, fileUri });
+  }
+
+  getSuggestedBinding(configScopeId: string, connectionId: string): Promise<ExtendedServer.GetSuggestedBindingResponse> {
+    return this.sendRequest(ExtendedServer.GetSuggestedBinding.type, { configScopeId, connectionId });
+  }
+
+  getConnectionSuggestions(configurationScopeId: string): Promise<ExtendedServer.GetConnectionSuggestionsResponse> {
+    return this.sendRequest(ExtendedServer.GetSuggestedConnections.type, { configurationScopeId })
+  }
+
+  getSharedConnectedModeConfigFileContent(
+    configScopeId: string
+  ): Promise<ExtendedServer.GetSharedConnectedModeConfigFileResponse> {
+    return this.sendRequest(ExtendedServer.GetSharedConnectedModeConfigFileContents.type, { configScopeId });
+  }
+
+  joinIdeLabsProgram(email: string, ide: string): Promise<ExtendedServer.JoinIdeLabsProgramResponse> {
+    return this.sendRequest(ExtendedServer.JoinIdeLabsProgram.type, { email, ide });
+  }
+
+  getMCPServerConfiguration(connectionId: string, token: string): Promise<ExtendedServer.GetMCPServerConfigurationResponse> {
+    return this.sendRequest(ExtendedServer.GetMCPServerConfiguration.type, { connectionId, token });
+  }
+
+  getAiIntegrationState(
+    params: AiIntegration.GetAiIntegrationStateParams
+  ): Promise<AiIntegration.GetAiIntegrationStateResponse> {
+    return this.sendRequest(AiIntegration.GetAiIntegrationState.type, params);
+  }
+
+  aiIntegrationAction(params: AiIntegration.AiIntegrationActionParams): Promise<void> {
+    return this.sendNotification(AiIntegration.ReportAiIntegrationAction.type, params);
+  }
+
+  aiIntegrationCliStateObserved(params: AiIntegration.AiIntegrationCliStateObservedParams): Promise<void> {
+    return this.sendNotification(AiIntegration.ReportAiIntegrationCliStateObserved.type, params);
+  }
+
+  aiAgentIntegrationStateObserved(params: AiIntegration.AiAgentIntegrationStateObservedParams): Promise<void> {
+    return this.sendNotification(AiIntegration.ReportAiAgentIntegrationStateObserved.type, params);
+  }
+
+  prepareInstallCliCommand(): Promise<AiIntegration.PrepareCliCommandResponse> {
+    return this.sendRequest(AiIntegration.PrepareInstallCliCommand.type);
+  }
+
+  prepareAuthenticateCliCommand(
+    params: AiIntegration.PrepareAuthenticateCliCommandParams
+  ): Promise<AiIntegration.PrepareCliCommandResponse> {
+    return this.sendRequest(AiIntegration.PrepareAuthenticateCliCommand.type, params);
+  }
+
+  prepareIntegrateCliCommand(
+    params: AiIntegration.PrepareIntegrateCliCommandParams
+  ): Promise<AiIntegration.PrepareCliCommandResponse> {
+    return this.sendRequest(AiIntegration.PrepareIntegrateCliCommand.type, params);
+  }
+
+  inspectMcpConfiguration(
+    params: AiIntegration.McpConfigurationInspectionParams
+  ): Promise<AiIntegration.McpConfigurationInspectionResponse> {
+    return this.sendRequest(AiIntegration.InspectMcpConfiguration.type, params);
+  }
+
+  planMcpConfigurationUpdate(
+    params: AiIntegration.McpConfigurationUpdateParams
+  ): Promise<AiIntegration.McpConfigurationUpdatePlanResponse> {
+    return this.sendRequest(AiIntegration.PlanMcpConfigurationUpdate.type, params);
+  }
+
+  getMCPRulesFileContent(aiAssistedIde: string): Promise<ExtendedServer.GetMCPRulesFileContentResponse> {
+    return this.sendRequest(ExtendedServer.GetMCPRulesFileContent.type, aiAssistedIde);
+  }
+
+  getAiAgentHookScriptContent(aiAgent: string): Promise<ExtendedServer.GetHookScriptContentResponse> {
+    return this.sendRequest(ExtendedServer.GetAiAgentHookScriptContent.type, aiAgent);
+  }
+
+  checkIssueStatusChangePermitted(
+    folderUri: string,
+    issueKey: string
+  ): Promise<ExtendedServer.CheckIssueStatusChangePermittedResponse> {
+    return this.sendRequest(ExtendedServer.CheckIssueStatusChangePermitted.type, { folderUri, issueKey });
+  }
+
+  changeIssueStatus(
+    configurationScopeId: string,
+    issueId: string,
+    newStatus: string,
+    fileUri: string,
+    comment: string,
+    isTaintIssue: boolean
+  ): Promise<void> {
+    return this.sendNotification(ExtendedServer.SetIssueStatus.type, {
+      configurationScopeId,
+      issueId,
+      newStatus,
+      fileUri,
+      comment,
+      isTaintIssue
+    });
+  }
+
+  changeDependencyRiskStatus(
+    configurationScopeId: string,
+    dependencyRiskKey: string,
+    transition: string,
+    comment: string
+  ): Promise<void> {
+    return this.sendNotification(ExtendedServer.ChangeDependencyRiskStatus.type, { configurationScopeId, dependencyRiskKey, transition, comment });
+  }
+
+  reopenResolvedLocalIssues(configurationScopeId: string, relativePath: string, fileUri: string): Promise<void> {
+    return this.sendNotification(ExtendedServer.ReopenResolvedLocalIssues.type, {
+      configurationScopeId,
+      relativePath,
+      fileUri
+    });
+  }
+
+  analyseOpenFileIgnoringExcludes(
+    triggeredByUser: boolean,
+    textDocument?: AnalysisFile,
+    notebookDocument?: VSCode.NotebookDocument,
+    notebookCells?: AnalysisFile[]
+  ): Promise<void> {
+    return this.sendNotification(ExtendedServer.AnalyseOpenFileIgnoringExcludes.type, {
+      triggeredByUser,
+      textDocument,
+      notebookUri: notebookDocument ? notebookDocument.uri.toString() : null,
+      notebookVersion: notebookDocument ? notebookDocument.version : null,
+      notebookCells
+    });
+  }
+
+  changeHotspotStatus(hotspotKey: string, newStatus: string, fileUri: string): Promise<void> {
+    return this.sendNotification(ExtendedServer.SetHotspotStatus.type, { hotspotKey, newStatus, fileUri });
+  }
+
+  checkLocalHotspotsDetectionSupported(folderUri: string): Promise<ExtendedServer.CheckLocalDetectionSupportedResponse> {
+    return this.sendRequest(ExtendedServer.CheckLocalDetectionSupported.type, { uri: folderUri });
+  }
+
+  getHotspotDetails(hotspotId, fileUri): Promise<ShowRuleDescriptionParams> {
+    return this.sendRequest(ExtendedServer.GetHotspotDetails.type, { hotspotId, fileUri });
+  }
+
+  addedManualBindings(): Promise<void> {
+    return this.sendNotification(ExtendedServer.AddedManualBindings.type);
+  }
+
+  acceptedBindingSuggestion(origin: ExtendedServer.BindingSuggestionOrigin): Promise<void> {
+    return this.sendNotification(ExtendedServer.AcceptedBindingSuggestion.type, { origin });
+  }
+
+  listUserOrganizations(token: string, region: string): Promise<ExtendedServer.Organization[]> {
+    return this.sendRequest(ExtendedServer.ListUserOrganizations.type, { token, region });
+  }
+
+  fixSuggestionResolved(suggestionId: string, accepted: boolean): Promise<void> {
+    return this.sendNotification(ExtendedServer.FixSuggestionResolved.type, { suggestionId, accepted });
+  }
+
+  findingsFiltered(filterType: string): Promise<void> {
+    return this.sendNotification(ExtendedServer.FindingsFilteredNotification.type, { filterType });
+  }
+
+  labsExternalLinkClicked(linkId: string) {
+    void this.sendNotification(ExtendedServer.LabsExternalLinkClicked.type, linkId);
+  }
+
+  labsFeedbackLinkClicked(featureId: string) {
+    void this.sendNotification(ExtendedServer.LabsFeedbackLinkClicked.type, featureId);
+  }
+
+  getPluginStatuses(configurationScopeId: string | null): Promise<ExtendedServer.GetPluginStatusesResponse> {
+    return this.sendRequest(ExtendedServer.GetPluginStatuses.type, { configurationScopeId });
+  }
+
+  supportedLanguagesPanelOpened() {
+    void this.sendNotification(ExtendedServer.SupportedLanguagesPanelOpened.type);
+  }
+
+  supportedLanguagesPanelCtaClicked() {
+    void this.sendNotification(ExtendedServer.SupportedLanguagesPanelCtaClicked.type);
+  }
+
+}

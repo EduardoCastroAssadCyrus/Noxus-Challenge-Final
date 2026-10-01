@@ -1,0 +1,121 @@
+/* --------------------------------------------------------------------------------------------
+ * SonarLint for VisualStudio Code
+ * Copyright (C) SonarSource Sàrl
+ * sonarlint@sonarsource.com
+ * Licensed under the LGPLv3 License. See LICENSE.txt in the project root for license information.
+ * ------------------------------------------------------------------------------------------ */
+'use strict';
+
+import * as sinon from 'sinon';
+import * as vscode from 'vscode';
+import { expect } from 'chai';
+import { ExtendedServer } from '../../src/lsp/protocol';
+import { AiIntegration } from '../../src/lsp/aiIntegrationProtocol';
+import { Commands } from '../../src/util/commands';
+import { LanguageClient } from 'vscode-languageclient/node';
+import { SETUP_TEARDOWN_HOOK_TIMEOUT } from './commons';
+import { CommandsManager } from '../../src/commandsManager';
+import * as mcpServerConfig from '../../src/aiAgentsConfiguration/mcpServerConfig';
+
+suite('ANALYZE_VCS_CHANGED_FILES command', () => {
+  const FINDINGS_FOCUS_COMMAND = 'SonarQube.Findings.focus';
+  let sendNotificationSpy: sinon.SinonSpy;
+  let executeCommandSpy: sinon.SinonSpy;
+  let workspaceFoldersStub: sinon.SinonStub;
+  let showWarningMessageStub: sinon.SinonStub;
+
+  setup(function () {
+    this.timeout(SETUP_TEARDOWN_HOOK_TIMEOUT);
+    sendNotificationSpy = sinon.spy(LanguageClient.prototype, 'sendNotification');
+    executeCommandSpy = sinon.spy(vscode.commands, 'executeCommand');
+    workspaceFoldersStub = sinon.stub(vscode.workspace, 'workspaceFolders');
+    showWarningMessageStub = sinon.stub(vscode.window, 'showWarningMessage');
+  });
+
+  teardown(() => {
+    sinon.restore();
+  });
+
+  test('should send notification with workspace folder URIs when workspace folders exist', () => {
+    const mockFolder1 = vscode.Uri.file('/path/to/folder1');
+    const mockFolder2 = vscode.Uri.file('/path/to/folder2');
+    const mockWorkspaceFolders: vscode.WorkspaceFolder[] = [
+      { uri: mockFolder1, name: 'folder1', index: 0 },
+      { uri: mockFolder2, name: 'folder2', index: 1 }
+    ];
+
+    workspaceFoldersStub.value(mockWorkspaceFolders);
+
+    vscode.commands.executeCommand(Commands.ANALYZE_VCS_CHANGED_FILES);
+
+    expect(sendNotificationSpy.calledOnce).to.be.true;
+    expect(sendNotificationSpy.firstCall.args[0]).to.equal(ExtendedServer.AnalyzeVCSChangedFiles.type);
+    
+    const notificationParams = sendNotificationSpy.firstCall.args[1];
+    expect(notificationParams).to.have.property('configScopeIds');
+    expect(notificationParams.configScopeIds).to.be.an('array');
+    expect(notificationParams.configScopeIds).to.have.lengthOf(2);
+  });
+
+  test('should send notification with undefined when no workspace folders exist', () => {
+    workspaceFoldersStub.value(undefined);
+
+    vscode.commands.executeCommand(Commands.ANALYZE_VCS_CHANGED_FILES);
+
+    expect(sendNotificationSpy.called).to.be.false;
+    expect(showWarningMessageStub.called).to.be.true;
+    expect(showWarningMessageStub.firstCall.args[0]).to.equal('No workspace folders found; Ignoring request to analyze VCS changed files.');
+  });
+
+  test('should focus on findings view after sending notification', () => {
+    const mockFolder = vscode.Uri.file('/path/to/folder');
+    const mockWorkspaceFolders: vscode.WorkspaceFolder[] = [
+      { uri: mockFolder, name: 'folder', index: 0 }
+    ];
+
+    workspaceFoldersStub.value(mockWorkspaceFolders);
+
+    vscode.commands.executeCommand(Commands.ANALYZE_VCS_CHANGED_FILES);
+
+    expect(executeCommandSpy.calledWith(FINDINGS_FOCUS_COMMAND)).to.be.true;
+  });
+});
+
+suite('CONFIGURE_MCP_SERVER command', () => {
+  teardown(() => sinon.restore());
+
+  test('refreshes the AI integrations view around MCP setup', async () => {
+    let configureCommand: ((connection?: unknown) => Promise<void>) | undefined;
+    sinon.stub(vscode.commands, 'registerCommand').callsFake((command, callback) => {
+      if (command === Commands.CONFIGURE_MCP_SERVER) {
+        configureCommand = callback as typeof configureCommand;
+      }
+      return { dispose: () => undefined };
+    });
+    sinon.stub(mcpServerConfig, 'isMCPSetupInProgress').returns(false);
+    const configureStub = sinon.stub(mcpServerConfig, 'configureMCPServer').resolves({
+      status: AiIntegration.AiIntegrationActionStatus.SUCCEEDED
+    });
+    const refreshStub = sinon.stub().resolves();
+    const postActionRefreshStub = sinon.stub().resolves();
+    const actionNotification = sinon.stub().resolves();
+    const context = { subscriptions: [] } as unknown as vscode.ExtensionContext;
+    const manager = new CommandsManager(
+      context,
+      { aiIntegrationAction: actionNotification } as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      { refresh: refreshStub, refreshAfterAction: postActionRefreshStub } as never
+    );
+    manager.registerCommands();
+
+    expect(configureCommand).to.not.be.undefined;
+    await configureCommand!();
+    expect(refreshStub.called).to.be.false;
+    expect(postActionRefreshStub.calledOnce).to.be.true;
+    expect(configureStub.calledOnce).to.be.true;
+    expect(actionNotification.getCalls().map(call => call.args[0].status)).to.deep.equal(['STARTED', 'SUCCEEDED']);
+  });
+});

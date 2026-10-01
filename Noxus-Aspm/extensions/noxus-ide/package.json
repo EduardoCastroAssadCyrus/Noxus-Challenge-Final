@@ -1,0 +1,1569 @@
+{
+  "name": "noxus-vscode-extension",
+  "displayName": "Noxus Extension for IDE",
+  "description": "Advanced linter to detect & fix coding issues locally in JS/TS, Python, Java, C#, C/C++, Go, PHP.  Use with SonarQube (Server, Cloud) for optimal team performance.",
+  "version": "6.1.0",
+  "icon": "images/sonarqube_for_ide_128px.png",
+  "publisher": "noxus",
+  "homepage": "https://www.sonarsource.com/products/sonarlint/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SonarSource/sonarlint-vscode.git"
+  },
+  "bugs": {
+    "url": "https://community.sonarsource.com/c/sl/vs-code/36"
+  },
+  "license": "SEE LICENSE IN LICENSE.txt",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Linters",
+    "Education",
+    "Programming Languages",
+    "Notebooks",
+    "AI"
+  ],
+  "keywords": [
+    "AI",
+    "Education",
+    "Vulnerability",
+    "Security",
+    "SonarQube",
+    "Static Code Analysis",
+    "Code Quality",
+    "language-model-tools",
+    "IaC",
+    "Go",
+    "C++",
+    "Java",
+    "JavaScript",
+    "C#",
+    "Python",
+    "TypeScript",
+    "Jupyter"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "capabilities": {
+    "virtualWorkspaces": false
+  },
+  "contributes": {
+    "configuration": {
+      "type": "object",
+      "title": "Noxus Extension for IDE",
+      "properties": {
+        "sonarlint.connectedMode.servers": {
+          "deprecationMessage": "The setting is deprecated. Use `sonarlint.connectedMode.connections.sonarqube` or `sonarlint.connectedMode.connections.sonarcloud` instead.",
+          "type": "array",
+          "scope": "application",
+          "default": [],
+          "markdownDescription": "Configure one or more connection(s) to SonarQube (Server, Cloud). For security reasons, the token should not be stored in SCM with workspace settings. The `serverId` can be any identifier and will be referenced in `#sonarlint.connectedMode.project#`.\n\nExample for SonarQube Cloud:\n\n    \"sonarlint.connectedMode.servers\": [\n      {\n        \"serverId\": \"my_orga_in_sonarcloud.io\",\n        \"serverUrl\": \"https://sonarcloud.io\",\n        \"organizationKey\": \"my_organization\",\n        \"token\": \"V2VkIE1...\"\n      }\n    ]\n\nExample for SonarQube Server:\n\n    \"sonarlint.connectedMode.servers\": [\n      {\n        \"serverId\": \"my_sonarqube\",\n        \"serverUrl\": \"https://sonar.mycompany.com\",\n        \"token\": \"V2VkIE1...\"\n      }\n    ]",
+          "items": {
+            "properties": {
+              "serverId": {
+                "type": "string",
+                "description": "A unique identifier for this server connection. Will be referenced from `#sonarlint.connectedMode.project#`"
+              },
+              "serverUrl": {
+                "type": "string",
+                "description": "URL of the server. Use https://sonarcloud.io for SonarQube Cloud."
+              },
+              "token": {
+                "type": "string",
+                "description": "Token generated from My Account>Security in SonarQube (Server, Cloud)"
+              },
+              "organizationKey": {
+                "type": "string",
+                "description": "Only used for SonarQube Cloud"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "sonarlint.connectedMode.connections.sonarqube": {
+          "order": 1,
+          "type": "array",
+          "scope": "application",
+          "default": [],
+          "markdownDescription": "Connect Noxus Extension for IDE to SonarQube Server to apply the same code quality and security standards as your team. Analyze more languages, detect more issues **on the whole project**, receive notifications about the quality gate status, and more. Quality Profiles and file exclusion settings defined on the server are shared between all connected users. Please find the documentation [here](https://docs.sonarsource.com/sonarqube-for-vs-code/connect-your-ide/connected-mode/)",
+          "items": {
+            "type": "object",
+            "properties": {
+              "connectionId": {
+                "type": "string",
+                "description": "A unique identifier for this connection to be used as a reference in `#sonarlint.connectedMode.project#`. Only needed if you plan to use multiple connections to SonarQube (Server, Cloud)."
+              },
+              "serverUrl": {
+                "type": "string",
+                "description": "URL of the SonarQube Server."
+              },
+              "token": {
+                "type": "string",
+                "description": "Token generated from 'My Account>Security' in SonarQube Server"
+              },
+              "disableNotifications": {
+                "type": "boolean",
+                "description": "SonarQube for VS Code will show notifications for bound projects when there are new issues assigned to you, or when the quality gate status changed. Set to false to disable all notifications for projects bound to this connection."
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "serverUrl"
+            ],
+            "examples": [
+              {
+                "serverUrl": "https://<replace_with_your_sonarqube_server_url>"
+              },
+              {
+                "connectionId": "MyCompanySonarQube",
+                "serverUrl": "https://<replace_with_your_sonarqube_server_url>",
+                "disableNotifications": false
+              }
+            ]
+          }
+        },
+        "sonarlint.connectedMode.connections.sonarcloud": {
+          "order": 2,
+          "type": "array",
+          "scope": "application",
+          "default": [],
+          "markdownDescription": "Connect Noxus Extension for IDE to SonarQube Cloud to apply the same code quality and security standards as your team. Analyze more languages, detect more issues **on the whole project**, receive notifications about the quality gate status, and more. Quality Profiles and file exclusion settings defined on the server are shared between all connected users. Please find the documentation [here](https://docs.sonarsource.com/sonarqube-for-vs-code/connect-your-ide/connected-mode/)",
+          "items": {
+            "type": "object",
+            "properties": {
+              "connectionId": {
+                "type": "string",
+                "description": "A unique identifier for this connection to be used as a reference in `#sonarlint.connectedMode.project#`. Only needed if you plan to use multiple connections to SonarQube (Server, Cloud)."
+              },
+              "region": {
+                "type": "string",
+                "enum": [
+                  "EU",
+                  "US"
+                ],
+                "description": "Region of the SonarQube Cloud instance. Use 'US' for `sonarqube.us`, 'EU' for `sonarcloud.io`."
+              },
+              "organizationKey": {
+                "type": "string",
+                "description": "A SonarQube Cloud organization key. If you want to bind different projects that are in different organizations, simply declare multiple connections."
+              },
+              "token": {
+                "type": "string",
+                "description": "Token generated from 'My Account>Security' in SonarQube Cloud"
+              },
+              "disableNotifications": {
+                "type": "boolean",
+                "description": "SonarQube for VS Code will show notifications for bound projects when there are new issues assigned to you, or when the quality gate status changed. Set to false to disable all notifications for projects bound to this connection."
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "organizationKey"
+            ],
+            "examples": [
+              {
+                "organizationKey": "<replace_with_your_sonarqube_cloud_organization_key>"
+              },
+              {
+                "connectionId": "MyOrganization",
+                "organizationKey": "<replace_with_your_sonarqube_cloud_organization_key>",
+                "disableNotifications": false
+              }
+            ]
+          }
+        },
+        "sonarlint.connectedMode.project": {
+          "order": 3,
+          "markdownDescription": "Bind the current workspace folder to a [SonarQube Server](command:SonarLint.HelpAndFeedbackLinkClicked?%22sonarQubeProductPage%22) or [SonarQube Cloud](command:SonarLint.HelpAndFeedbackLinkClicked?%5B%7B%22id%22%3A%22sonarCloudProductPage%22%2C%22utm%22%3A%7B%22content%22%3A%22settings-connected-mode%22%2C%22term%22%3A%22bind-current-workspace%22%7D%7D%5D) project. Requires connection details to be defined in the setting `#sonarlint.connectedMode.connections.sonarqube#` or `#sonarlint.connectedMode.connections.sonarcloud#`.\n\nBinding a workspace folder to a server project allows SonarQube for VS Code to match, as much as possible, the same rules and settings as found on the server, and hence share the analysis configuration with other contributors.\n\nExample:\n\n    \"sonarlint.connectedMode.project\": {\n      \"projectKey\": \"my_project\",\n      \"connectionId\":\"my_connection_id\"\n    }\n\n",
+          "examples": [
+            {
+              "projectKey": "<replace_with_server_project_key>"
+            },
+            {
+              "connectionId": "<replace_with_connection_id>",
+              "projectKey": "<replace_with_server_project_key>"
+            }
+          ],
+          "default": {},
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "serverId": {
+                  "type": "string",
+                  "description": "Identifier of the server connection declared in `#sonarlint.connectedMode.connections.sonarqube#` or `#sonarlint.connectedMode.connections.sonarcloud#`"
+                },
+                "projectKey": {
+                  "type": "string",
+                  "description": "Key of the project in SonarQube (Server, Cloud)"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "serverId",
+                "projectKey"
+              ],
+              "deprecationMessage": "Replace `serverId` attribute by `connectionId`."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "connectionId": {
+                  "type": "string",
+                  "description": "Identifier of the server connection declared in `#sonarlint.connectedMode.connections.sonarqube#` or `#sonarlint.connectedMode.connections.sonarcloud#`"
+                },
+                "projectKey": {
+                  "type": "string",
+                  "description": "Key of the project in SonarQube Server or SonarQube Cloud (can be found on project homepage)"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "projectKey"
+              ]
+            }
+          ],
+          "scope": "resource"
+        },
+        "sonarlint.automaticAnalysis": {
+          "order": 4,
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Enable or disable on-the-fly analysis of files you work on. When enabled, Noxus Extension for IDE will automatically analyze open files and show findings in real-time.",
+          "scope": "application"
+        },
+        "sonarlint.ideLabsEnabled": {
+          "order": 5,
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Enable or disable [**Noxus Extension for IDE Labs**](command:SonarQube.Labs.focus) experimental features. Only takes effect after joining Noxus Extension for IDE Labs.",
+          "when": "sonarqube.ideLabsJoined",
+          "scope": "application"
+        },
+        "sonarlint.rules": {
+          "order": 6,
+          "type": "object",
+          "scope": "application",
+          "default": {},
+          "markdownDescription": "Customize applied rule set. This property contains a list of rules whose activation level or parameter values differ from the one provided by default. In [Connected Mode](command:SonarLint.HelpAndFeedbackLinkClicked?%22connectedModeDocs%22), this configuration is overridden by the projects's Quality Profile, as configured on server side and can be **shared among contributors**. See [SonarLint Rules](command:SonarLint.AllRules.focus) view for the list of **locally** available rules.\n\nExample:\n\n    \"sonarlint.rules\": {\n        \"javascript:S1481\": {\n            \"level\": \"off\",\n         },\n        \"javascript:S103\": {\n            \"level\": \"on\",\n            \"parameters\": {\n                \"maximumLineLength\": \"120\"\n            }\n        }\n    }\n",
+          "patternProperties": {
+            "^[^:]+:[^:]+$": {
+              "type": "object",
+              "markdownDescription": "Property names are rule keys in the form: `repo:key`",
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "off",
+                    "on"
+                  ],
+                  "markdownDescription": "When set to `off`, disable the rule. When set to `on`, enable the rule."
+                },
+                "parameters": {
+                  "type": "object",
+                  "markdownDescription": "Rule parameters. See rule description for accepted parameters. E.g `{ \"intParam\": \"123\" }`."
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "sonarlint.pathToCompileCommands": {
+          "order": 7,
+          "type": "string",
+          "markdownDescription": "Path to the active compilation database, e.g. `C:\\\\Repos\\\\MyProject\\\\compile_commands.json`",
+          "scope": "resource"
+        },
+        "sonarlint.testFilePattern": {
+          "order": 8,
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Files whose name match this [glob pattern](https://docs.oracle.com/javase/tutorial/essential/io/fileOps.html#glob) are considered as test files by analyzers. Most rules are *not* evaluated on test files.\n\nIn [Connected Mode](command:SonarLint.HelpAndFeedbackLinkClicked?%22connectedModeDocs%22), this setting is configured **on the server-side** and shared among all contributors.\n\nExample: `**/test/**,**/*test*,**/*Test*`",
+          "scope": "resource"
+        },
+        "sonarlint.analysisExcludesStandalone": {
+          "order": 9,
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Files whose name match this [glob pattern](https://docs.oracle.com/javase/tutorial/essential/io/fileOps.html#glob) will not be processed by analyzers. In [Connected Mode](command:SonarLint.HelpAndFeedbackLinkClicked?%22connectedModeDocs%22) with SonarQube Server or SonarQube Cloud, this property will be ignored and the server's exclusion settings will be applied. No rules are evaluated on excluded files. Example: `**/lib/**,**/*generated*`",
+          "scope": "resource"
+        },
+        "sonarlint.pathToNodeExecutable": {
+          "order": 10,
+          "type": "string",
+          "markdownDescription": "Path to a Node.js executable (versions above 22.12.0, or 24.0.0) used to analyze JavaScript and TypeScript code. \nOn Windows, backslashes must be escaped, e.g. `C:\\\\Program Files\\\\NodeJS\\\\22-lts\\\\bin\\\\node.exe`",
+          "scope": "resource"
+        },
+        "sonarlint.ls.javaHome": {
+          "order": 11,
+          "type": "string",
+          "markdownDescription": "Path to a Java Runtime Environment (21 or more recent) used to launch the SonarQube for VS Code Language Server.\n* On Windows, backslashes must be escaped, e.g. `C:\\\\Program Files\\\\Java\\\\jdk-21` \n* On macOS, this path should include the `/Contents/Home` directory, e.g `/Library/Java/JavaVirtualMachines/corretto-21/Contents/Home`",
+          "scope": "resource"
+        },
+        "sonarlint.ls.vmargs": {
+          "order": 12,
+          "type": "string",
+          "markdownDescription": "Extra JVM arguments used to launch the SonarLint Language Server. e.g. `-Xmx1024m`",
+          "scope": "machine"
+        },
+        "sonarlint.focusOnNewCode": {
+          "order": 13,
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "If enabled, by default, [focusing on new code](https://docs.sonarsource.com/sonarqube-for-vs-code/using/investigating-issues/#focusing-on-new-code) shows issues introduced in the last 30 days.\n\nFor the most accurate and customizable new code definition, use [Connected Mode](https://docs.sonarsource.com/sonarqube-for-vs-code/connect-your-ide/connected-mode) with SonarQube (Server, Cloud).",
+          "scope": "machine"
+        },
+        "sonarlint.output.showVerboseLogs": {
+          "order": 90,
+          "type": "boolean",
+          "default": false,
+          "description": "Enable verbose log level in the Noxus Extension for IDE output.",
+          "scope": "window"
+        },
+        "sonarlint.analyzerProperties": {
+          "order": 92,
+          "type": "object",
+          "patternProperties": {
+            "^.*$": {
+              "type": "string",
+              "markdownDescription": "One entry value"
+            },
+            "additionalProperties": false
+          },
+          "markdownDescription": "Extra properties that could be passed to the code analyzers. Only for advanced use cases.",
+          "scope": "resource"
+        },
+        "sonarlint.trace.server": {
+          "order": 98,
+          "default": "off",
+          "description": "Traces the communication between VS Code and the SonarLint language server.",
+          "scope": "window",
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "off",
+                "messages",
+                "verbose"
+              ],
+              "default": "off"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "verbosity": {
+                  "type": "string",
+                  "enum": [
+                    "off",
+                    "messages",
+                    "verbose"
+                  ],
+                  "default": "off"
+                },
+                "format": {
+                  "type": "string",
+                  "enum": [
+                    "text",
+                    "json"
+                  ],
+                  "default": "text"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "sonarlint.disableTelemetry": {
+          "order": 100,
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "By sharing anonymous Noxus Extension for IDE usage statistics and error data, you help us understand how Noxus Extension for IDE is used so we can improve the plugin to work even better for you. This data is aggregated and does not contain source code, IP addresses, or any personally identifying information. We utilize Sentry for crash tracking. Check this box to opt-out of this collection. See a [sample of the data](https://github.com/SonarSource/sonarlint-vscode/blob/master/telemetry-sample.md).",
+          "scope": "window"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "SonarLint.ShowSonarLintOutput",
+        "title": "Show Noxus Extension for IDE Output",
+        "category": "Noxus"
+      },
+      {
+        "command": "SonarLint.ReopenLocalIssues",
+        "title": "Reopen Local Issues for current file",
+        "category": "Noxus"
+      },
+      {
+        "command": "SonarLint.AnalyseOpenFile",
+        "title": "Analyze Current File with Noxus",
+        "category": "Noxus",
+        "icon": "$(sonarqube-analysis)"
+      },
+      {
+        "command": "SonarLint.AnalyzeVCSChangedFiles",
+        "title": "Analyze Changed Files with Noxus",
+        "category": "Noxus",
+        "icon": "$(sonarqube-analysis)",
+        "enablement": "sonarqube.ideLabsEnabled"
+      },
+      {
+        "command": "SonarLint.ConfigureCompilationDatabase",
+        "title": "Configure the compilation database for C and C++ analysis",
+        "category": "Noxus"
+      },
+      {
+        "command": "SonarLint.UserRefreshAIAgentsConfiguration",
+        "title": "Refresh",
+        "icon": "$(refresh)",
+        "category": "Noxus",
+        "when": "view == SonarLint.AIAgentsConfiguration"
+      },
+      {
+        "command": "SonarLint.OpenAIAgentsConfigurationDoc",
+        "title": "Open AI Agents Configuration Documentation",
+        "icon": "$(book)",
+        "category": "Noxus",
+        "when": "view == SonarLint.AIAgentsConfiguration"
+      },
+      {
+        "command": "SonarLint.AutoBindWorkspaceFolders",
+        "title": "Bind all workspace folders to SonarQube (Server, Cloud)",
+        "category": "Noxus"
+      },
+      {
+        "command": "SonarLint.DeactivateRule",
+        "title": "Deactivate",
+        "icon": "$(x)",
+        "enablement": "view == SonarLint.AllRules"
+      },
+      {
+        "command": "SonarLint.ActivateRule",
+        "title": "Activate",
+        "icon": "$(check)",
+        "enablement": "view == SonarLint.AllRules"
+      },
+      {
+        "command": "SonarLint.ResetDefaultRule",
+        "title": "Reset",
+        "enablement": "view == SonarLint.AllRules"
+      },
+      {
+        "command": "SonarLint.ShowAllRules",
+        "title": "All",
+        "enablement": "view == SonarLint.AllRules"
+      },
+      {
+        "command": "SonarLint.ShowActiveRules",
+        "title": "Active",
+        "enablement": "view == SonarLint.AllRules"
+      },
+      {
+        "command": "SonarLint.ShowInactiveRules",
+        "title": "Inactive",
+        "enablement": "view == SonarLint.AllRules"
+      },
+      {
+        "command": "SonarLint.ScanForHotspotsInFolder",
+        "title": "Scan for Hotspots in Folder",
+        "category": "Noxus"
+      },
+      {
+        "command": "SonarQube.ShowAllInfoForFinding",
+        "title": "Show finding location and details"
+      },
+      {
+        "command": "SonarLint.FindRuleByKey",
+        "title": "Find Rule By Key",
+        "enablement": "view == SonarLint.AllRules"
+      },
+      {
+        "command": "SonarLint.ClearLocations",
+        "title": "Clear",
+        "enablement": "view == SonarLint.IssueLocations || view == SonarQube.Findings"
+      },
+      {
+        "command": "SonarQube.ClearRemediationEvents",
+        "title": "Clear All",
+        "icon": "$(clear-all)",
+        "category": "Noxus",
+        "enablement": "sonarqube.ideLabsEnabled"
+      },
+      {
+        "command": "SonarLint.ClearHotspotLocations",
+        "title": "Clear Highlighting",
+        "enablement": "view == SonarQube.Findings"
+      },
+      {
+        "command": "SonarLint.TriggerBrowseTaintCommand",
+        "title": "Open Taint Vulnerability on remote server",
+        "enablement": "view == SonarQube.Findings"
+      },
+      {
+        "command": "SonarQube.TriggerAiCodeFixCommand",
+        "title": "✧˖° Fix with AI CodeFix",
+        "enablement": "view == SonarQube.Findings"
+      },
+      {
+        "command": "SonarQube.TriggerFetchCodeActionsCommand",
+        "title": "More Actions...",
+        "enablement": "view == SonarQube.Findings"
+      },
+      {
+        "command": "SonarQube.TriggerResolveTaintCommand",
+        "title": "Resolve issue as...",
+        "enablement": "view == SonarQube.Findings"
+      },
+      {
+        "command": "SonarQube.ShowAllFindings",
+        "title": "All",
+        "category": "Noxus",
+        "enablement": "sonarqube.findingsFilter != filter-all && view == SonarQube.Findings"
+      },
+      {
+        "command": "SonarQube.ShowFixableIssuesOnly",
+        "title": "Fix Available",
+        "category": "Noxus",
+        "enablement": "sonarqube.findingsFilter != filter-fix-available && view == SonarQube.Findings"
+      },
+      {
+        "command": "SonarQube.ShowOpenFilesOnly",
+        "title": "Open Files",
+        "category": "Noxus",
+        "enablement": "sonarqube.findingsFilter != filter-open-files && view == SonarQube.Findings"
+      },
+      {
+        "command": "SonarQube.ShowHighSeverityOnly",
+        "title": "High Severity",
+        "category": "Noxus",
+        "enablement": "sonarqube.findingsFilter != filter-high-severity && view == SonarQube.Findings"
+      },
+      {
+        "command": "SonarQube.ShowCurrentFileOnly",
+        "title": "Current File",
+        "category": "Noxus",
+        "enablement": "sonarqube.findingsFilter != filter-current-file && view == SonarQube.Findings"
+      },
+      {
+        "command": "SonarLint.ConnectToSonarQube",
+        "title": "Connect to SonarQube Server",
+        "category": "Noxus",
+        "icon": "$(plus)"
+      },
+      {
+        "command": "SonarLint.ConnectToSonarCloud",
+        "title": "Connect to SonarQube Cloud",
+        "category": "Noxus",
+        "icon": "$(plus)"
+      },
+      {
+        "command": "SonarLint.EditSonarQubeConnection",
+        "title": "Edit SonarQube Server Connection",
+        "category": "Noxus",
+        "icon": "$(pencil)",
+        "enablement": "view == SonarLint.ConnectedMode"
+      },
+      {
+        "command": "SonarLint.EditSonarCloudConnection",
+        "title": "Edit SonarQube Cloud Connection",
+        "category": "Noxus",
+        "icon": "$(pencil)",
+        "enablement": "view == SonarLint.ConnectedMode"
+      },
+      {
+        "command": "SonarLint.AddProjectBinding",
+        "title": "Add Project Binding",
+        "category": "Noxus",
+        "icon": "$(plus)",
+        "enablement": "view == SonarLint.ConnectedMode"
+      },
+      {
+        "command": "SonarLint.RemoveConnection",
+        "title": "Remove Connection",
+        "category": "Noxus",
+        "icon": "$(trash)",
+        "enablement": "view == SonarLint.ConnectedMode"
+      },
+      {
+        "command": "SonarLint.EditProjectBinding",
+        "title": "Edit Project Binding",
+        "category": "Noxus",
+        "icon": "$(pencil)",
+        "enablement": "view == SonarLint.ConnectedMode"
+      },
+      {
+        "command": "SonarLint.RemoveProjectBinding",
+        "title": "Remove Project Binding",
+        "category": "Noxus",
+        "icon": "$(trash)",
+        "enablement": "view == SonarLint.ConnectedMode"
+      },
+      {
+        "command": "SonarLint.OpenHotspotOnServer",
+        "title": "Review on Server",
+        "category": "Noxus",
+        "enablement": "view == SonarQube.Findings && viewItem == knownHotspotItem"
+      },
+      {
+        "command": "SonarLint.ShowHotspotRuleDescription",
+        "title": "Show Rule Description",
+        "category": "Noxus",
+        "enablement": "view == SonarQube.Findings && viewItem == newHotspotItem"
+      },
+      {
+        "command": "SonarLint.ShowHotspotDetails",
+        "title": "Show Hotspot Details",
+        "category": "Noxus",
+        "enablement": "view == SonarQube.Findings && viewItem == knownHotspotItem"
+      },
+      {
+        "command": "SonarLint.ChangeHotspotStatus",
+        "title": "Change Status",
+        "category": "Noxus",
+        "enablement": "view == SonarQube.Findings && viewItem == knownHotspotItem"
+      },
+      {
+        "command": "SonarLint.ChangeDependencyRiskStatus",
+        "title": "Change Status",
+        "category": "Noxus",
+        "enablement": "view == SonarQube.Findings && viewItem == dependencyRiskItem"
+      },
+      {
+        "command": "SonarLint.HelpAndFeedbackLinkClicked",
+        "title": "Share feedback",
+        "category": "Noxus"
+      },
+      {
+        "command": "SonarLint.EnableVerboseLogs",
+        "title": "Enable Verbose Logging",
+        "category": "Noxus"
+      },
+      {
+        "command": "SonarLint.EnableLogsAndShowOutput",
+        "title": "Enable Verbose Logging and Show Output",
+        "category": "Noxus"
+      },
+      {
+        "command": "SonarLint.ShareConnectedModeConfiguration",
+        "title": "Share Connected Mode Configuration",
+        "category": "Noxus",
+        "icon": "$(export)",
+        "enablement": "view == SonarLint.ConnectedMode"
+      },
+      {
+        "command": "SonarLint.NewCodeDefinition.Enable",
+        "title": "Focus on New Code",
+        "category": "Noxus",
+        "icon": "$(eye)",
+        "enablement": "view == SonarQube.Findings && !config.sonarlint.focusOnNewCode"
+      },
+      {
+        "command": "SonarLint.NewCodeDefinition.Disable",
+        "title": "Focus on Overall Code",
+        "category": "Noxus",
+        "icon": "$(eye-closed)",
+        "enablement": "view == SonarQube.Findings && config.sonarlint.focusOnNewCode"
+      },
+      {
+        "command": "SonarLint.AutomaticAnalysis.Enable",
+        "title": "Enable Automatic Analysis",
+        "category": "Noxus",
+        "icon": "$(sync)",
+        "enablement": "!config.sonarlint.automaticAnalysis"
+      },
+      {
+        "command": "SonarLint.AutomaticAnalysis.Disable",
+        "title": "Disable Automatic Analysis",
+        "category": "Noxus",
+        "icon": "$(sync-ignored)",
+        "enablement": "config.sonarlint.automaticAnalysis"
+      },
+      {
+        "command": "SonarQube.DumpBackendThreads",
+        "title": "Dump Backend Threads",
+        "category": "Noxus",
+        "enablement": "sonarqube.flightRecorderRunning"
+      },
+      {
+        "command": "SonarLint.ConfigureMCPServer",
+        "title": "Configure MCP Server",
+        "category": "Noxus",
+        "icon": "$(mcp-server)",
+        "enablement": "sonarqube.mcpServerSupportedAgent"
+      },
+      {
+        "command": "SonarLint.OpenMCPServerConfiguration",
+        "title": "Open MCP Server Configuration",
+        "category": "Noxus",
+        "icon": "$(mcp-server)",
+        "enablement": "sonarqube.mcpServerSupportedAgent"
+      },
+      {
+        "command": "SonarLint.IntroduceSonarQubeRulesFile",
+        "title": "Introduce SonarQube Rules File",
+        "category": "Noxus",
+        "icon": "$(file-text)",
+        "enablement": "sonarqube.rulesFileSupportedAgent"
+      },
+      {
+        "command": "SonarLint.OpenSonarQubeRulesFile",
+        "title": "Open SonarQube Rules File",
+        "category": "Noxus",
+        "icon": "$(file-text)",
+        "enablement": "sonarqube.rulesFileSupportedAgent"
+      },
+      {
+        "command": "SonarLint.InstallAiAgentHookScript",
+        "title": "Install Hook for Code Analysis",
+        "category": "Noxus",
+        "icon": "$(symbol-event)",
+        "enablement": "sonarqube.hookScriptSupportedAgent"
+      },
+      {
+        "command": "SonarLint.UninstallAiAgentHookScript",
+        "title": "Uninstall AI Agent Hook Script",
+        "category": "Noxus",
+        "icon": "$(trash)",
+        "enablement": "sonarqube.hookScriptSupportedAgent"
+      },
+      {
+        "command": "SonarLint.OpenAiAgentHookScript",
+        "title": "Open AI Agent Hook Script",
+        "category": "Noxus",
+        "icon": "$(go-to-file)",
+        "enablement": "sonarqube.hookScriptSupportedAgent"
+      },
+      {
+        "command": "SonarLint.OpenAiAgentHookConfiguration",
+        "title": "Open AI Agent Hook Configuration File",
+        "category": "Noxus",
+        "icon": "$(json)",
+        "enablement": "sonarqube.hookScriptSupportedAgent"
+      },
+      {
+        "command": "SonarQube.EnableLabs",
+        "title": "Enable Labs",
+        "category": "Noxus",
+        "icon": "$(settings-gear)",
+        "enablement": "view == SonarQube.Labs && !sonarqube.ideLabsEnabled"
+      },
+      {
+        "command": "SonarQube.DisableLabs",
+        "title": "Disable Labs",
+        "category": "Noxus",
+        "icon": "$(settings-gear)",
+        "enablement": "view == SonarQube.Labs && sonarqube.ideLabsEnabled"
+      },
+      {
+        "command": "SonarQube.ShowSupportedLanguages",
+        "title": "Show Supported Languages & Analyzers",
+        "category": "Noxus",
+        "icon": "$(list-unordered)",
+        "enablement": "sonarqube.ideLabsEnabled"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "icon": "images/sonarqube_for_ide.svg",
+          "id": "SonarLint",
+          "title": "Noxus Extension for IDE"
+        }
+      ],
+      "panel": [
+        {
+          "icon": "images/sonarqube_for_ide.svg",
+          "id": "SonarQube",
+          "title": "Noxus",
+          "when": "sonarqube.someFoldersUseConnectedMode"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "SonarLint.IssueLocations",
+          "name": "Noxus Issue Locations",
+          "when": "sonarqube.hasExploredIssueLocations"
+        }
+      ],
+      "SonarLint": [
+        {
+          "type": "tree",
+          "id": "SonarQube.GetStarted",
+          "name": "Get Started",
+          "when": "sonarqube.shouldShowGetStartedView"
+        },
+        {
+          "id": "SonarLint.ConnectedMode",
+          "name": "Connected Mode"
+        },
+        {
+          "type": "webview",
+          "id": "SonarLint.AIAgentsConfiguration",
+          "name": "AI Integrations"
+        },
+        {
+          "id": "SonarLint.AllRules",
+          "name": "Rules",
+          "visibility": "collapsed",
+          "when": "sonarqube.someFoldersUseStandaloneMode"
+        },
+        {
+          "id": "SonarLint.HelpAndFeedback",
+          "name": "Help and Feedback"
+        }
+      ],
+      "SonarQube": [
+        {
+          "id": "SonarQube.Findings",
+          "name": "Noxus Findings"
+        },
+        {
+          "id": "SonarQube.RemediationPanel",
+          "name": "Remediation Center",
+          "type": "webview",
+          "icon": "$(history)",
+          "when": "sonarqube.ideLabsEnabled"
+        },
+        {
+          "id": "SonarQube.Labs",
+          "name": "Noxus Extension for IDE Labs",
+          "icon": "$(beaker)",
+          "type": "webview"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "SonarLint.IssueLocations",
+        "contents": "No locations to show.\nSelect a SonarQube issue in the \"SonarQube\" view.\n[Show Findings](command:SonarQube.Findings.focus)"
+      },
+      {
+        "view": "SonarLint.ConnectedMode",
+        "contents": "[Connected Mode](command:SonarLint.HelpAndFeedbackLinkClicked?%22connectedModeDocs%22) links Noxus Extension for IDE to SonarQube Server or SonarQube Cloud projects. \n\n[Connect to SonarQube Server](command:SonarLint.ConnectToSonarQube)\n[Connect to SonarQube Cloud](command:SonarLint.ConnectToSonarCloud)\n\nAnalyze more languages, detect more issues on the whole project, receive notifications about the quality gate status, and more."
+      },
+      {
+        "view": "SonarQube.GetStarted",
+        "contents": "Automatically find and fix code quality and security issues as you write, using powerful linting tools built right into your code editor.\n\n[Get Started with Noxus Extension for IDE](command:SonarLint.HelpAndFeedbackLinkClicked?%22sonarLintWalkthrough%22) $(arrow-right)"
+      },
+      {
+        "view": "SonarQube.Findings",
+        "contents": "No SonarQube issues to display."
+      },
+      {
+        "view": "SonarQube.RemediationPanel",
+        "contents": "No 'Open In IDE' events yet.\n\nClick 'Open In IDE' from SonarQube (Server, Cloud) to see events here.",
+        "when": "sonarqube.ideLabsEnabled"
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "SonarLint.walkthrough",
+        "title": "Welcome to Noxus Extension for IDE!",
+        "description": "Start left and discover issues early.\nNoxus Extension for IDE empowers you to find & fix code issues in real time, in 15+ languages.",
+        "steps": [
+          {
+            "id": "SonarQube.getStarted",
+            "title": "$(rocket) New to SonarQube?",
+            "description": "Unlock more languages and security rules.\n[Create Free Account](command:SonarLint.HelpAndFeedbackLinkClicked?%5B%7B%22id%22%3A%22sonarqubeCloudFreeSignUp%22%2C%22utm%22%3A%7B%22content%22%3A%22walkthrough-welcome-sq-ide%22%2C%22term%22%3A%22create-free-account%22%7D%7D%5D)",
+            "media": {
+              "image": "walkthrough/abstractServerProduct.svg",
+              "altText": "SonarQube Cloud illustration"
+            },
+            "completionEvents": [
+              "onLink:https://www.sonarsource.com/products/sonarcloud/signup-free/"
+            ]
+          },
+          {
+            "id": "SonarLint.connectedModeIntro",
+            "title": "$(shield) Taint Vulnerabilities and More",
+            "description": "Enable advanced analysis (including [Taint Vulnerabilities](https://docs.sonarsource.com/sonarqube-for-vs-code/using/taint-vulnerabilities/) and wider language support) by connecting to SonarQube (Server, Cloud). Also, benefit from the [AI CodeFix](https://docs.sonarsource.com/sonarqube-for-vs-code/ai-capabilities/ai-codefix) within your IDE.\n[Set up Connection](command:SonarLint.ConnectedMode.focus)\n",
+            "media": {
+              "image": "walkthrough/taintVulnerabilities.svg",
+              "altText": "Noxus Extension for IDE Taint Vulnerabilities"
+            },
+            "completionEvents": [
+              "onView:SonarLint.ConnectedMode"
+            ]
+          },
+          {
+            "id": "SonarLint.reachOut",
+            "title": "$(comment-discussion) Share feedback or ask for help",
+            "description": "You'd like to learn more about Noxus Extension for IDE, or give us feedback? Check out the [Help and Feedback view](command:SonarLint.HelpAndFeedback.focus).\n",
+            "media": {
+              "image": "walkthrough/community.svg",
+              "altText": "Sonar Community"
+            },
+            "completionEvents": [
+              "onView:SonarLint.HelpAndFeedback"
+            ]
+          },
+          {
+            "id": "SonarLint.resolveIssues",
+            "title": "$(bug) Enough theory, let's fix some code!",
+            "description": "Open our sample file and get started instantly:\n[Open Sample File](command:SonarLint.OpenSample)\nCheck the [Problems view](command:workbench.panel.markers.view.focus): SonarQube has found something $(warning).\nRight-click on the issue.\nShow issue details: SonarQube explains why this is an issue.\nFor certain rules and issues, Noxus Extension for IDE will suggest available Quick Fixes.",
+            "media": {
+              "image": "walkthrough/issueDetected.svg",
+              "altText": "Noxus Extension for IDE Rule Description"
+            },
+            "completionEvents": [
+              "onCommand:SonarLint.ShowIssueDetailsCodeAction"
+            ]
+          }
+        ]
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "SonarLint.AnalyseOpenFile",
+          "group": "navigation",
+          "when": "resourceScheme == file"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "SonarLint.ShowAllRules",
+          "when": "view == SonarLint.AllRules",
+          "group": "navigation"
+        },
+        {
+          "command": "SonarLint.ShowActiveRules",
+          "when": "view == SonarLint.AllRules",
+          "group": "navigation"
+        },
+        {
+          "command": "SonarLint.ShowInactiveRules",
+          "when": "view == SonarLint.AllRules",
+          "group": "navigation"
+        },
+        {
+          "command": "SonarLint.FindRuleByKey",
+          "when": "view == SonarLint.AllRules"
+        },
+        {
+          "command": "SonarLint.ClearLocations",
+          "when": "view == SonarLint.IssueLocations",
+          "group": "navigation"
+        },
+        {
+          "command": "SonarLint.ConnectToSonarQube",
+          "when": "view == SonarLint.ConnectedMode",
+          "group": "inline"
+        },
+        {
+          "command": "SonarLint.ConnectToSonarCloud",
+          "when": "view == SonarLint.ConnectedMode",
+          "group": "inline"
+        },
+        {
+          "command": "SonarLint.UserRefreshAIAgentsConfiguration",
+          "when": "view == SonarLint.AIAgentsConfiguration",
+          "group": "navigation"
+        },
+        {
+          "command": "SonarLint.OpenAIAgentsConfigurationDoc",
+          "when": "view == SonarLint.AIAgentsConfiguration",
+          "group": "navigation"
+        },
+        {
+          "command": "SonarLint.NewCodeDefinition.Enable",
+          "when": "view == SonarQube.Findings && !config.sonarlint.focusOnNewCode",
+          "group": "navigation"
+        },
+        {
+          "command": "SonarLint.NewCodeDefinition.Disable",
+          "when": "view == SonarQube.Findings && config.sonarlint.focusOnNewCode",
+          "group": "navigation"
+        },
+        {
+          "command": "SonarLint.AutomaticAnalysis.Enable",
+          "when": "view == SonarQube.Findings && !config.sonarlint.automaticAnalysis",
+          "group": "navigation"
+        },
+        {
+          "command": "SonarLint.AutomaticAnalysis.Disable",
+          "when": "view == SonarQube.Findings && config.sonarlint.automaticAnalysis",
+          "group": "navigation"
+        },
+        {
+          "submenu": "SonarQube.FindingsFilter",
+          "when": "view == SonarQube.Findings && sonarqube.findingsFilter == filter-all",
+          "group": "navigation"
+        },
+        {
+          "submenu": "SonarQube.FindingsFilterActive",
+          "when": "view == SonarQube.Findings && sonarqube.findingsFilter != filter-all",
+          "group": "navigation"
+        },
+        {
+          "submenu": "SonarQube.Labs",
+          "when": "view == SonarQube.Labs && sonarqube.ideLabsJoined",
+          "group": "navigation"
+        },
+        {
+          "command": "SonarQube.ClearRemediationEvents",
+          "when": "view == SonarQube.RemediationPanel && sonarqube.ideLabsEnabled",
+          "group": "navigation"
+        }
+      ],
+      "SonarQube.FindingsFilter": [
+        {
+          "command": "SonarQube.ShowAllFindings",
+          "when": "view == SonarQube.Findings",
+          "group": "1_filter"
+        },
+        {
+          "command": "SonarQube.ShowFixableIssuesOnly",
+          "when": "view == SonarQube.Findings",
+          "group": "1_filter"
+        },
+        {
+          "command": "SonarQube.ShowOpenFilesOnly",
+          "when": "view == SonarQube.Findings",
+          "group": "1_filter"
+        },
+        {
+          "command": "SonarQube.ShowHighSeverityOnly",
+          "when": "view == SonarQube.Findings",
+          "group": "1_filter"
+        },
+        {
+          "command": "SonarQube.ShowCurrentFileOnly",
+          "when": "view == SonarQube.Findings",
+          "group": "1_filter"
+        }
+      ],
+      "SonarQube.FindingsFilterActive": [
+        {
+          "command": "SonarQube.ShowAllFindings",
+          "when": "view == SonarQube.Findings",
+          "group": "1_filter"
+        },
+        {
+          "command": "SonarQube.ShowFixableIssuesOnly",
+          "when": "view == SonarQube.Findings",
+          "group": "1_filter"
+        },
+        {
+          "command": "SonarQube.ShowOpenFilesOnly",
+          "when": "view == SonarQube.Findings",
+          "group": "1_filter"
+        },
+        {
+          "command": "SonarQube.ShowHighSeverityOnly",
+          "when": "view == SonarQube.Findings",
+          "group": "1_filter"
+        },
+        {
+          "command": "SonarQube.ShowCurrentFileOnly",
+          "when": "view == SonarQube.Findings",
+          "group": "1_filter"
+        }
+      ],
+      "SonarQube.Labs": [
+        {
+          "command": "SonarQube.EnableLabs",
+          "title": "Enable Labs",
+          "when": "view == SonarQube.Labs && !sonarqube.ideLabsEnabled"
+        },
+        {
+          "command": "SonarQube.DisableLabs",
+          "title": "Disable Labs",
+          "when": "view == SonarQube.Labs && sonarqube.ideLabsEnabled"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "SonarLint.DeactivateRule",
+          "when": "view == SonarLint.AllRules && viewItem == rule-on",
+          "group": "inline"
+        },
+        {
+          "command": "SonarLint.ActivateRule",
+          "when": "view == SonarLint.AllRules && viewItem == rule-off",
+          "group": "inline"
+        },
+        {
+          "command": "SonarLint.ConnectToSonarQube",
+          "when": "view == SonarLint.ConnectedMode && viewItem == sonarQubeGroup",
+          "group": "inline"
+        },
+        {
+          "command": "SonarLint.ConnectToSonarCloud",
+          "when": "view == SonarLint.ConnectedMode && viewItem == sonarCloudGroup",
+          "group": "inline"
+        },
+        {
+          "command": "SonarLint.EditSonarQubeConnection",
+          "title": "Edit",
+          "when": "view == SonarLint.ConnectedMode && viewItem == sonarqubeConnection",
+          "group": "inline"
+        },
+        {
+          "command": "SonarLint.EditSonarCloudConnection",
+          "title": "Edit",
+          "when": "view == SonarLint.ConnectedMode && viewItem == sonarcloudConnection",
+          "group": "inline"
+        },
+        {
+          "command": "SonarLint.AddProjectBinding",
+          "title": "Add Project Binding",
+          "when": "view == SonarLint.ConnectedMode && viewItem == sonarcloudConnection || viewItem == sonarqubeConnection",
+          "group": "inline"
+        },
+        {
+          "command": "SonarLint.RemoveConnection",
+          "title": "Remove",
+          "when": "view == SonarLint.ConnectedMode && viewItem == sonarcloudConnection || viewItem == sonarqubeConnection",
+          "group": "inline"
+        },
+        {
+          "command": "SonarLint.EditProjectBinding",
+          "title": "Edit",
+          "when": "view == SonarLint.ConnectedMode && viewItem == workspaceFolder",
+          "group": "inline"
+        },
+        {
+          "command": "SonarLint.RemoveProjectBinding",
+          "title": "Remove",
+          "when": "view == SonarLint.ConnectedMode && viewItem == workspaceFolder",
+          "group": "inline"
+        },
+        {
+          "command": "SonarLint.ShareConnectedModeConfiguration",
+          "title": "Share",
+          "when": "view == SonarLint.ConnectedMode && viewItem == workspaceFolder",
+          "group": "inline"
+        },
+        {
+          "command": "SonarLint.ShowHotspotRuleDescription",
+          "title": "Show Rule Description",
+          "when": "view == SonarQube.Findings && viewItem == newHotspotItem"
+        },
+        {
+          "command": "SonarLint.ShowHotspotDetails",
+          "title": "Show Hotspot Details",
+          "when": "view == SonarQube.Findings && viewItem == knownHotspotItem"
+        },
+        {
+          "command": "SonarLint.ChangeHotspotStatus",
+          "title": "Change Status",
+          "when": "view == SonarQube.Findings && viewItem == knownHotspotItem"
+        },
+        {
+          "command": "SonarLint.ChangeDependencyRiskStatus",
+          "title": "Change Status",
+          "when": "view == SonarQube.Findings && viewItem == dependencyRiskItem"
+        },
+        {
+          "command": "SonarLint.OpenHotspotOnServer",
+          "title": "Review on Server",
+          "when": "view == SonarQube.Findings && viewItem == knownHotspotItem"
+        },
+        {
+          "command": "SonarLint.ClearHotspotLocations",
+          "title": "Clear Highlighting",
+          "when": "view == SonarQube.Findings && viewItem == newHotspotItem || viewItem == knownHotspotItem"
+        },
+        {
+          "command": "SonarLint.TriggerBrowseTaintCommand",
+          "title": "Open Taint Vulnerability on remote server",
+          "when": "view == SonarQube.Findings && viewItem == taintVulnerabilityItem || viewItem == AICodeFixableTaintItem"
+        },
+        {
+          "command": "SonarQube.TriggerAiCodeFixCommand",
+          "title": "✧˖° Fix with AI CodeFix",
+          "when": "view == SonarQube.Findings && (viewItem == AICodeFixableTaintItem || viewItem == AICodeFixableIssueItem)"
+        },
+        {
+          "command": "SonarQube.TriggerFetchCodeActionsCommand",
+          "title": "More Actions...",
+          "when": "view == SonarQube.Findings && (viewItem == AICodeFixableIssueItem || viewItem == issueItem)"
+        },
+        {
+          "command": "SonarQube.TriggerResolveTaintCommand",
+          "title": "Resolve issue as...",
+          "when": "view == SonarQube.Findings && viewItem == taintVulnerabilityItem || viewItem == AICodeFixableTaintItem"
+        },
+        {
+          "command": "SonarLint.ConfigureMCPServer",
+          "title": "Configure MCP Server",
+          "when": "sonarqube.mcpServerSupportedAgent && view == SonarLint.ConnectedMode && (viewItem == sonarcloudConnection || viewItem == sonarqubeConnection)",
+          "group": "inline"
+        }
+      ],
+      "scm/resourceGroup/context": [
+        {
+          "command": "SonarLint.AnalyzeVCSChangedFiles",
+          "when": "sonarqube.ideLabsEnabled",
+          "group": "inline"
+        }
+      ]
+    },
+    "colors": [
+      {
+        "id": "sonarlint.locations.background",
+        "description": "Background color for highlighted secondary locations of SonarLint issues",
+        "defaults": {
+          "light": "#f2dede",
+          "dark": "#523e3e",
+          "highContrast": "#523e3e"
+        }
+      },
+      {
+        "id": "sonarlint.locations.indexText",
+        "description": "Text color for secondary location index of SonarLint issues",
+        "defaults": {
+          "light": "#fff",
+          "dark": "#ccc",
+          "highContrast": "#ccc"
+        }
+      },
+      {
+        "id": "sonarlint.locations.indexBackground",
+        "description": "Background color for secondary location index of SonarLint issues",
+        "defaults": {
+          "light": "#d18582",
+          "dark": "#74232f",
+          "highContrast": "#74232f"
+        }
+      },
+      {
+        "id": "sonarlint.locations.indexSelectedText",
+        "description": "Text color for active secondary location index of SonarLint issues",
+        "defaults": {
+          "light": "#fff",
+          "dark": "#fff",
+          "highContrast": "#fff"
+        }
+      },
+      {
+        "id": "sonarlint.locations.indexSelectedBackground",
+        "description": "Background color for active secondary location index of SonarLint issues",
+        "defaults": {
+          "light": "#a4030f",
+          "dark": "#b4131f",
+          "highContrast": "#b4131f"
+        }
+      }
+    ],
+    "icons": {
+      "security-hotspot": {
+        "description": "Security Hotspot",
+        "default": {
+          "fontPath": "icons/sonarlint.woff",
+          "fontCharacter": "H"
+        }
+      },
+      "sonarqube-analysis": {
+        "description": "Run SonarQube Analysis",
+        "default": {
+          "fontPath": "icons/sonarlint.woff",
+          "fontCharacter": "A"
+        }
+      },
+      "mcp-server": {
+        "description": "MCP Server Configuration",
+        "default": {
+          "fontPath": "icons/sonarlint.woff",
+          "fontCharacter": "M"
+        }
+      }
+    },
+    "languageModelTools": [
+      {
+        "name": "sonarqube_list_potential_security_issues",
+        "displayName": "SonarQube: List Potential Security Issues",
+        "toolReferenceName": "sonarqube_getPotentialSecurityIssues",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(unlock)",
+        "modelDescription": "This tool returns a list of potential security issues (Security Hotspots and Taint Vulnerabilities) in a given file. It runs SonarQube analysis on the file and returns a list of Security Hotspots detected with their location and error message. Additionally, it lists Taint Vulnerabilities detected by SonarQube Server or Cloud analysis.",
+        "tags": [
+          "sonarqube",
+          "security-analysis",
+          "linter"
+        ],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "The full path to the file for which the potential security issues are to be listed."
+            }
+          }
+        }
+      },
+      {
+        "name": "sonarqube_exclude_from_analysis",
+        "displayName": "SonarQube: Exclude File or Folder from Analysis",
+        "toolReferenceName": "sonarqube_excludeFiles",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(exclude)",
+        "modelDescription": "This tool modifies the Noxus Extension for IDE configuration to exclude files matching a given glob pattern from analysis.",
+        "tags": [
+          "sonarqube",
+          "static-analysis",
+          "file-exclusion",
+          "linter"
+        ],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "globPattern": {
+              "type": "string",
+              "description": "Oracle glob pattern to exclude files or folders from analysis. For example, `**/test/**` to exclude all files in the test folder."
+            }
+          }
+        }
+      },
+      {
+        "name": "sonarqube_setup_connected_mode",
+        "displayName": "SonarQube: Set up Connected Mode",
+        "toolReferenceName": "sonarqube_setUpConnectedMode",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(link)",
+        "modelDescription": "This tool guides the user through the process of setting up Connected Mode in Noxus Extension for IDE. It provides instructions and prompts and runs necessary commands to help the user connect their IDE to a SonarQube Server or Cloud.",
+        "tags": [
+          "sonarqube",
+          "sonarqube-connected-mode",
+          "sonarcloud",
+          "linter",
+          "security-analysis"
+        ],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "workspaceFolder": {
+              "type": "string",
+              "description": "Path to the workspace folder in VS Code for which the user wants to set up Connected Mode. If only one workspace folder is open, it will be used by default."
+            },
+            "isSonarQubeCloud": {
+              "type": "boolean",
+              "description": "Indicates whether the user wants to connect to SonarQube Cloud. If true, the user will be prompted for the organization key. If false, the user will be prompted for the server URL of their SonarQube Server."
+            },
+            "serverUrl": {
+              "type": "string",
+              "description": "URL of the SonarQube Server instance to connect to. Required if user wants to connect to a SonarQube Server. Example: `https://sonarqube.example.com`."
+            },
+            "organizationKey": {
+              "type": "string",
+              "description": "Key of the SonarQube Cloud organization to connect to. Required if user wants to connect to a SonarQube Cloud. Example: `my-organization`."
+            },
+            "projectKey": {
+              "type": "string",
+              "description": "Key of the SonarQube Server or Cloud project to bind to the workspace folder. This is used to set up the project binding in Connected Mode."
+            }
+          }
+        }
+      },
+      {
+        "name": "sonarqube_analyze_file",
+        "displayName": "SonarQube: Analyze File",
+        "toolReferenceName": "sonarqube_analyzeFile",
+        "canBeReferencedInPrompt": true,
+        "modelDescription": "This tool opens the requested file and runs SonarQube analysis on it. Detected code quality and security issues will be reported in the Problems view of the IDE. It can be used to analyze any file including those that are not part of a workspace or those that are excluded from the analysis. Do not call this method to analyze Jupyter Notebook.",
+        "icon": "$(play)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "The full path to the file that should be analyzed."
+            }
+          }
+        }
+      }
+    ],
+    "submenus": [
+      {
+        "id": "SonarQube.FindingsFilter",
+        "label": "Filter Findings",
+        "icon": "$(filter)"
+      },
+      {
+        "id": "SonarQube.FindingsFilterActive",
+        "label": "Filter Findings",
+        "icon": "$(filter-filled)"
+      },
+      {
+        "id": "SonarQube.Labs",
+        "label": "Enable / Disable IDE Labs",
+        "icon": "$(settings-gear)"
+      }
+    ]
+  },
+  "main": "./dist/extension",
+  "scripts": {
+    "vscode:prepublish": "node build-sonarlint/prepare.mjs && webpack --mode production",
+    "compile": "tsc -p ./",
+    "webpack": "webpack --mode development",
+    "pretest": "webpack --mode development && tsc -p ./",
+    "test": "node out/test/runTest.js",
+    "test-cov": "node out/test/runTest.js --coverage",
+    "prepare": "node build-sonarlint/prepare.mjs",
+    "cyclonedx-run": "cyclonedx-npm",
+    "deploy-all": "node build-sonarlint/deployAll.mjs",
+    "deploy-universal": "node build-sonarlint/deploy.mjs",
+    "package": "node build-sonarlint/package.mjs",
+    "package-all": "node build-sonarlint/package-all.mjs"
+  },
+  "dependencies": {
+    "@openpgp/web-stream-tools": "^0.3.0",
+    "@sentry/node": "^11.1.0",
+    "@vscode/codicons": "^0.0.45",
+    "@vscode/webview-ui-toolkit": "1.0.0",
+    "@xmldom/xmldom": "^0.9.0",
+    "adm-zip": "^0.6.0",
+    "canvas-confetti": "^1.9.4",
+    "compare-versions": "^6.1.1",
+    "diff": "^9.0.0",
+    "expand-home-dir": "^0.0.3",
+    "find-java-home": "^2.0.0",
+    "follow-redirects": "^1.15.11",
+    "globby": "^16.0.0",
+    "highlight.js": "^11.11.1",
+    "inly": "^5.0.1",
+    "luxon": "^3.7.2",
+    "node-html-parser": "^9.0.0",
+    "openpgp": "^6.3.0",
+    "path-exists": "^5.0.0",
+    "properties": "^1.2.1",
+    "sinon": "^21.0.0",
+    "tar": "^7.5.11",
+    "underscore": "^1.13.8",
+    "vscode-languageclient": "^10.1.1",
+    "zlib": "^1.0.5"
+  },
+  "devDependencies": {
+    "@cyclonedx/cyclonedx-npm": "^6.0.1",
+    "@sentry/webpack-plugin": "^5.0.0",
+    "@sonar/scan": "^5.0.0",
+    "@types/adm-zip": "^0.5.0",
+    "@types/chai": "^5.2.3",
+    "@types/follow-redirects": "^1.14.4",
+    "@types/lodash": "^4.17.21",
+    "@types/luxon": "^3.7.1",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.19.43",
+    "@types/vscode": "^1.73.1",
+    "@vscode/test-electron": "^3.0.0",
+    "@vscode/vsce": "^4.0.0",
+    "chai": "^6.2.1",
+    "crypto": "^1.0.1",
+    "dateformat": "^5.0.3",
+    "del": "^8.0.1",
+    "expect.js": "^0.3.1",
+    "fancy-log": "^2.0.0",
+    "fs-extra": "^11.4.1",
+    "glob": "^13.0.0",
+    "istanbul-lib-coverage": "^3.2.2",
+    "istanbul-lib-instrument": "^6.0.3",
+    "istanbul-lib-report": "^3.0.1",
+    "istanbul-lib-source-maps": "^5.0.6",
+    "istanbul-reports": "^3.2.0",
+    "map-stream": "^0.0.7",
+    "mocha": "^12.0.0",
+    "mocha-multi-reporters": "^1.5.1",
+    "prettier": "^3.7.4",
+    "stream": "^0.0.3",
+    "through2": "^4.0.2",
+    "ts-loader": "^9.5.4",
+    "typescript": "^6.0.3",
+    "unzipper": "^0.12.3",
+    "vinyl": "^3.0.1",
+    "webpack": "^5.104.1",
+    "webpack-cli": "^7.0.0"
+  },
+  "jarDependencies": [
+    {
+      "groupId": "org.sonarsource.sonarlint.ls",
+      "artifactId": "sonarlint-language-server",
+      "version": "6.0.2.79770",
+      "output": "server/sonarlint-ls.jar"
+    },
+    {
+      "groupId": "org.sonarsource.go",
+      "artifactId": "sonar-go-plugin",
+      "version": "1.46.0.9107",
+      "output": "analyzers/sonargo.jar"
+    },
+    {
+      "groupId": "org.sonarsource.javascript",
+      "artifactId": "sonar-javascript-plugin",
+      "version": "14.0.0.46108",
+      "output": "analyzers/sonarjs.jar"
+    },
+    {
+      "groupId": "org.sonarsource.java",
+      "artifactId": "sonar-java-plugin",
+      "version": "8.44.0.48651",
+      "output": "analyzers/sonarjava.jar"
+    },
+    {
+      "groupId": "org.sonarsource.java",
+      "artifactId": "sonar-java-symbolic-execution-plugin",
+      "version": "8.16.4.1912",
+      "output": "analyzers/sonarjavasymbolicexecution.jar"
+    },
+    {
+      "groupId": "org.sonarsource.php",
+      "artifactId": "sonar-php-plugin",
+      "version": "4.1.0.16998",
+      "output": "analyzers/sonarphp.jar"
+    },
+    {
+      "groupId": "org.sonarsource.python",
+      "artifactId": "sonar-python-plugin",
+      "version": "5.32.0.37250",
+      "output": "analyzers/sonarpython.jar"
+    },
+    {
+      "groupId": "org.sonarsource.html",
+      "artifactId": "sonar-html-plugin",
+      "version": "3.28.0.8018",
+      "output": "analyzers/sonarhtml.jar"
+    },
+    {
+      "groupId": "org.sonarsource.xml",
+      "artifactId": "sonar-xml-plugin",
+      "version": "2.19.0.8138",
+      "output": "analyzers/sonarxml.jar"
+    },
+    {
+      "groupId": "org.sonarsource.text",
+      "artifactId": "sonar-text-plugin",
+      "version": "2.51.0.13430",
+      "output": "analyzers/sonartext.jar"
+    },
+    {
+      "groupId": "org.sonarsource.iac",
+      "artifactId": "sonar-iac-plugin",
+      "version": "2.20.0.24052",
+      "output": "analyzers/sonariac.jar"
+    },
+    {
+      "groupId": "org.sonarsource.sonarlint.omnisharp",
+      "artifactId": "sonarlint-omnisharp-plugin",
+      "version": "1.47.0.102096",
+      "output": "analyzers/sonarlintomnisharp.jar",
+      "requiresCredentials": true
+    }
+  ],
+  "prettier": {
+    "jsxBracketSameLine": true,
+    "printWidth": 120,
+    "singleQuote": true,
+    "tabWidth": 2,
+    "useTabs": false,
+    "arrowParens": "avoid",
+    "trailingComma": "none",
+    "bracketSpacing": true
+  },
+  "overrides": {
+    "ip-address": "^10.3.1"
+  }
+}

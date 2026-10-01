@@ -7,7 +7,7 @@ Tudo roda na mesma máquina. O Agent executa scanners, normaliza relatórios e e
 Requer Python 3.11 ou superior. Extraia o ZIP e abra a pasta `noxus-local-v2` no terminal do VS Code.
 
 ```powershell
-cd "C:\Users\jacki\Documents\Faculdade e tals\Challenge\Noxus-Aspm360"
+cd "C:\Users\jacki\Documents\Faculdade e tals\Challenge\Noxus-Aspm"
 bun run agent:init
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e .

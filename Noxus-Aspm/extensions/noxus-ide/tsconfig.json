@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "module": "preserve",
+        "moduleResolution": "bundler",
+        "customConditions": ["node"],
+        "target": "es2021",
+        "outDir": "out",
+        "lib": [
+            "es2021"
+        ],
+        "sourceMap": true,
+        "rootDir": ".",
+        "skipLibCheck": true,
+        "strict": false,
+        "types": ["node", "mocha"]
+    },
+    "exclude": [
+        "node_modules",
+        ".vscode-test",
+        "its",
+        "dogfood",
+        "eslint-bridge",
+        "test/noxus"
+    ]
+}

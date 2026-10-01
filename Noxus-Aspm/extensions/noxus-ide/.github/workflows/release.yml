@@ -1,0 +1,196 @@
+name: sonar-release
+# Triggered by the SonarSource IDE release action (publish-github-release) via workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        description: 'Full version including build number, e.g. 5.2.2+80191'
+        required: true
+      dryRun:
+        type: boolean
+        description: Flag to enable the dry-run execution
+        default: false
+
+
+jobs:
+  attach-vsix-to-draft:
+    if: ${{ !inputs.dryRun }}
+    permissions:
+      id-token: write
+      contents: write
+    runs-on: github-ubuntu-latest-s
+    name: Attach VSIX files to draft release
+    strategy:
+      matrix:
+        platform: [ 'win32-x64', 'linux-x64', 'darwin-x64', 'darwin-arm64', 'universal' ]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Get vault secrets
+        id: secrets
+        uses: SonarSource/vault-action-wrapper@c154b4a417b51cb98dd71137f49bf20e77c56820 # 3.4.0
+        with:
+          secrets: |
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader access_token | ARTIFACTORY_ACCESS_TOKEN;
+      - name: Extract artifact URL
+        id: extract_version
+        env:
+          TAG_NAME: ${{ inputs.version }}
+          PLATFORM: ${{ matrix.platform }}
+        run: bash .github/scripts/extract-artifact-url.sh
+      - name: Download VSIX from Artifactory
+        id: download_artifact
+        uses: ./.github/actions/download-vsix
+        with:
+          artifact-name: ${{ steps.extract_version.outputs.artifactName }}
+          artifact-url: ${{ steps.extract_version.outputs.artifactUrl }}
+          artifactory-token: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+      - name: Upload VSIX to draft release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          ARTIFACT_FILE: ${{ steps.download_artifact.outputs.artifact-file }}
+        run: gh release upload "$RELEASE_VERSION" "$ARTIFACT_FILE" --clobber
+
+  release:
+    needs: attach-vsix-to-draft
+    if: ${{ always() && (needs.attach-vsix-to-draft.result == 'success' || needs.attach-vsix-to-draft.result == 'skipped') }}
+    permissions:
+      id-token: write
+      contents: write
+    uses: SonarSource/gh-action_release/.github/workflows/main.yaml@95ca260926950eedcc8c69437f9f12b6f0584de4 # 7.0.1
+    with:
+      version: ${{ inputs.version }}
+      dryRun: ${{ inputs.dryRun }}
+      createDraftRelease: false
+      publishToBinaries: false
+      mavenCentralSync: false
+      slackChannel: C02E6L5C01H # squad-devex-private
+
+  deploy_to_microsoft_marketplace:
+    if: ${{ !inputs.dryRun }}
+    permissions:
+      id-token: write
+      contents: write
+    runs-on: github-ubuntu-latest-s
+    name: Deploy to Visual Studio marketplace
+    needs: release
+    strategy:
+      # Deployment jobs are executed sequentially to make sure that the universal package is the last one deployed
+      max-parallel: 1
+      matrix:
+        platform: [ 'win32-x64', 'linux-x64', 'darwin-x64', 'darwin-arm64', 'universal' ]
+    env:
+      ARTIFACTORY_URL: https://repox.jfrog.io/artifactory
+    steps:
+      - name: Checkout custom actions
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          clean: false
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.8.9
+      - name: Get vault secrets
+        id: secrets
+        uses: SonarSource/vault-action-wrapper@3.0.1
+        with:
+          secrets: |
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader access_token | ARTIFACTORY_ACCESS_TOKEN;
+            development/kv/data/visualstudio VSCE_TOKEN | VISUALSTUDIO_PAT;
+      - name: Cache NPM dependencies
+        uses: SonarSource/gh-action_cache@v1
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-vsce-publish-${{ hashFiles('.github/actions/vsce-publish/package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-vsce-publish-
+      - name: Install dependencies for vsce-publish
+        run: |
+          cp ${GITHUB_WORKSPACE}/.github/scripts/.npmrc ./.npmrc
+          export ARTIFACTORY_ACCESS_TOKEN=${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+          npm ci
+        working-directory: ./.github/actions/vsce-publish
+      - name: Extract version, file name and download URL
+        id: extract_version
+        env:
+          TAG_NAME: ${{ inputs.version }}
+          PLATFORM: ${{ matrix.platform }}
+        run: bash .github/scripts/extract-artifact-url.sh
+      - name: Download promoted file
+        id: download_artifact
+        uses: ./.github/actions/download-vsix
+        with:
+          artifact-name: ${{ steps.extract_version.outputs.artifactName }}
+          artifact-url: ${{ steps.extract_version.outputs.artifactUrl }}
+          artifactory-token: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+
+      - name: Publish to Visual Studio Marketplace
+        if: success()
+        id: vsce_publish
+        env:
+          ARTIFACT_FILE: ${{ steps.download_artifact.outputs.artifact-file }}
+          TARGET_PLATFORM: ${{ matrix.platform }}
+          VSCE_TOKEN: ${{ fromJSON(steps.secrets.outputs.vault).VISUALSTUDIO_PAT }}
+        uses: ./.github/actions/vsce-publish
+
+  deploy_to_openvsx:
+    if: ${{ !inputs.dryRun }}
+    permissions:
+      id-token: write
+      contents: write
+    runs-on: github-ubuntu-latest-s
+    name: Deploy to OpenVSX
+    needs: release
+    strategy:
+      # Deployment jobs are executed sequentially to make sure that the universal package is the last one deployed
+      max-parallel: 1
+      matrix:
+        platform: [ 'linux-x64', 'darwin-x64', 'darwin-arm64', 'win32-x64', 'universal' ]
+    env:
+      ARTIFACTORY_URL: https://repox.jfrog.io/artifactory
+    steps:
+      - name: Checkout custom actions
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.8.9
+      - name: Get vault secrets
+        id: secrets
+        uses: SonarSource/vault-action-wrapper@3.0.1
+        with:
+          secrets: |
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader access_token | ARTIFACTORY_ACCESS_TOKEN;
+            development/team/sonarlint/kv/data/openvsx token | OPENVSX_TOKEN;
+      - name: Cache NPM dependencies
+        uses: SonarSource/gh-action_cache@v1
+        with:
+          path: |
+            ~/.npm
+            node_modules/
+          key: npm-${{ runner.os }}-ovsx-publish-${{ hashFiles('.github/actions/ovsx-publish/package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-ovsx-publish-
+      - name: Install dependencies for ovsx-publish
+        run: |
+          cp ${GITHUB_WORKSPACE}/.github/scripts/.npmrc ./.npmrc
+          export ARTIFACTORY_ACCESS_TOKEN=${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+          npm ci
+        working-directory: ./.github/actions/ovsx-publish
+      - name: Extract version, file name and download URL
+        id: extract_version
+        env:
+          TAG_NAME: ${{ inputs.version }}
+          PLATFORM: ${{ matrix.platform }}
+        run: bash .github/scripts/extract-artifact-url.sh
+      - name: Download promoted file
+        id: download_artifact
+        uses: ./.github/actions/download-vsix
+        with:
+          artifact-name: ${{ steps.extract_version.outputs.artifactName }}
+          artifact-url: ${{ steps.extract_version.outputs.artifactUrl }}
+          artifactory-token: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+      - name: Publish to OpenVSX
+        if: success()
+        id: ovsx_publish
+        env:
+          ARTIFACT_FILE: ${{ steps.download_artifact.outputs.artifact-file }}
+          OPENVSX_TOKEN: ${{ fromJSON(steps.secrets.outputs.vault).OPENVSX_TOKEN }}
+        uses: ./.github/actions/ovsx-publish

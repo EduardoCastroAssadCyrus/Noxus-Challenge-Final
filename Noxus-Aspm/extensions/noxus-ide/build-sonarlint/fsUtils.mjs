@@ -1,0 +1,31 @@
+/* --------------------------------------------------------------------------------------------
+ * SonarLint for VisualStudio Code
+ * Copyright (C) SonarSource Sàrl
+ * sonarlint@sonarsource.com
+ * Licensed under the LGPLv3 License. See LICENSE.txt in the project root for license information.
+ * ------------------------------------------------------------------------------------------ */
+'use strict';
+import { deleteSync } from 'del';
+import { info } from 'fancy-log';
+import { pathExistsSync, removeSync } from 'fs-extra/esm';
+import { readFileSync, unlinkSync } from 'node:fs';
+
+export function clean() {
+  info('Starting task "clean"');
+  deleteSync(['*.vsix', 'server', 'out', 'out-cov']);
+}
+
+export function cleanJreDir() {
+  if (pathExistsSync('./jre')) {
+    removeSync('./jre');
+  }
+}
+
+export function getPackageJSON() {
+  return JSON.parse(readFileSync('package.json').toString());
+}
+
+export function deleteFile(filePath) {
+  unlinkSync(filePath);
+}
+

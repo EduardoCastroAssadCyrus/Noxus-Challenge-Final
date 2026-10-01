@@ -1,0 +1,12 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Noxus: compilar extensão",
+      "type": "shell",
+      "command": "bun run ide:build",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": "$tsc"
+    }
+  ]
+}
