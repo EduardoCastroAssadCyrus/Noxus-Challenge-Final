@@ -82,7 +82,7 @@ def imported_asset(envelope: ScanEnvelope, received_at: datetime):
         application_name=source.name,
         type="application",
         identifier=source.id,
-        repo=source.repository_url,
+        repo=source.repository_url or "",
         environment="unknown",
         owner="Não informado",
         business_criticality=None,

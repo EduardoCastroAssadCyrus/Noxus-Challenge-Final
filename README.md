@@ -59,6 +59,8 @@ Os READMEs antigos do Agent também descrevem uma API independente. **Para o flu
 
 ## 3. Dependências necessárias
 
+O arquivo [requirements.txt](requirements.txt) centraliza a instalação Python e o inventário das demais dependências, com os comandos para frontend, extensão e scanners. Execute seus comandos a partir de `Challenge`.
+
 ### 3.1 Instalações do sistema
 
 | Dependência | Uso | Instalação coberta |
@@ -473,7 +475,7 @@ Se você já configurou executáveis nativos compatíveis em `commands` do cadas
 | Nome do desenvolvedor | Seu nome; não deixe vazio. |
 | Cargo | Sua função; pode ficar vazio. |
 | Equipe | Seu time; pode ficar vazio. |
-| URL HTTPS do repositório | URL real, sem token/credenciais. Confira a sugestão extraída do Git; substitua o exemplo se não for seu repositório. Não é um comando de clone. |
+| URL HTTPS do repositório | Opcional: pressione Enter para usar somente a pasta local. Se informar uma URL, use HTTP(S) sem token/credenciais. Não é um comando de clone. |
 | Nome do ativo | Nome reconhecível da aplicação/projeto; Enter aceita o nome da pasta. |
 | URL da aplicação local | URL HTTP(S) de loopback que o Nikto deve analisar. Para testar o próprio dashboard Noxus, `http://127.0.0.1:3000`. Para outro projeto, use a porta real dele. |
 

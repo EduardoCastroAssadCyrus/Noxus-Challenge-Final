@@ -7,6 +7,20 @@ from pydantic import SecretStr
 from .conftest import envelope
 
 
+@pytest.mark.parametrize("omit", [True, False])
+def test_import_accepts_local_project_without_remote(client, omit):
+    payload = envelope()
+    if omit:
+        payload["asset"].pop("repository_url")
+    else:
+        payload["asset"]["repository_url"] = None
+    response = client.post("/api/v1/imports", json=payload)
+    assert response.status_code == 201, response.text
+    dashboard = client.get("/api/v1/dashboard").json()
+    assert dashboard["assets"][0]["repo"] == ""
+    assert dashboard["findings"][0]["original"]["asset"]["repository_url"] is None
+
+
 @pytest.mark.parametrize(
     "tool",
     [

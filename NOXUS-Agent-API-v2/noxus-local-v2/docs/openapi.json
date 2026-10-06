@@ -675,9 +675,11 @@
             "default": "web-api"
           },
           "repository_url": {
-            "type": "string",
-            "maxLength": 1024,
-            "minLength": 1,
+            "anyOf": [
+              { "type": "string", "maxLength": 1024, "minLength": 1 },
+              { "type": "null" }
+            ],
+            "default": null,
             "title": "Repository Url"
           },
           "branch": {
@@ -738,8 +740,7 @@
         "type": "object",
         "required": [
           "id",
-          "name",
-          "repository_url"
+          "name"
         ],
         "title": "Asset"
       },

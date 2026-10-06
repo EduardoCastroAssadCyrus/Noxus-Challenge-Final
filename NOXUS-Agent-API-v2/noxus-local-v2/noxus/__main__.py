@@ -7,15 +7,17 @@ import subprocess
 import sys
 from pathlib import Path
 from uuid import uuid4
-from noxus.agent import NoxusAgent, TOOLS, git
+from noxus.agent import NoxusAgent, TOOLS, local_repository_path
 from noxus.storage import atomic_json, read_json, now
+from noxus.scanner_help import show_installation_help
 
 
 def main():
     parser = argparse.ArgumentParser(description='NoxusAgent + API local JSON')
     parser.add_argument('--config', default='.noxus/config.json', help='Caminho de configuração (antes do subcomando)')
     sub = parser.add_subparsers(dest='action',required=True)
-    sub.add_parser('init',help='Configuração interativa')
+    init = sub.add_parser('init',help='Configuração interativa')
+    init.add_argument('--no-install-help', action='store_true', help=argparse.SUPPRESS)
     serve = sub.add_parser('serve',help='Inicia API em loopback')
     serve.add_argument('--port',type=int,default=8000)
     sub.add_parser('doctor',help='Verifica executáveis')
@@ -34,11 +36,11 @@ def main():
             parser.error('Configuração já existe; edite o JSON ou escolha outro --config.')
         def ask(label, default=''):
             return input(label+(f' [{default}]' if default else '')+': ').strip() or default
-        repo = str(Path(ask('Pasta LOCAL do repositório',str(Path.cwd()))).expanduser().resolve())
+        repo = str(local_repository_path(ask('Pasta LOCAL do repositório',str(Path.cwd()))))
         name = ask('Nome do desenvolvedor')
         role = ask('Cargo') or None
         team = ask('Equipe') or None
-        repository = ask('URL HTTPS do repositório',git(repo,'remote','get-url','origin') or 'https://github.com/equipe/projeto')
+        repository = ask('URL HTTPS do repositório (opcional; Enter para deixar vazio)') or None
         asset_name = ask('Nome do ativo',Path(repo).name)
         target = ask('URL da aplicação local (vazio se não houver)') or None
         state = config_path.parent
@@ -49,9 +51,11 @@ def main():
             'api_url':'http://127.0.0.1:8000','api_key':secrets.token_urlsafe(32),
             'commands':{},'semgrep_config':'p/default','scan_timeout_seconds':1800,
             'poll_seconds':2,'debounce_seconds':3,'sca_interval_seconds':86400}
-        NoxusAgent(config)
+        agent = NoxusAgent(config)
         atomic_json(config_path,config)
         print('Configuração criada. Edite asset.consumed_apis para cadastrar APIs consumidas.')
+        if not args.no_install_help:
+            show_installation_help(agent, config_path, compact=True)
         return
     if not config_path.exists():
         parser.error('Execute init primeiro.')
@@ -83,6 +87,8 @@ def main():
         print(f'Monitor iniciado com PID {child.pid}. Log: {state / "agent.log"}. Para encerrar use o gerenciador de processos ou kill PID.')
         return
     agent = NoxusAgent(config)
+    if args.action in {'doctor', 'scan', 'watch'}:
+        show_installation_help(agent, config_path, args.tools if args.action == 'scan' else None)
     if args.action == 'doctor':
         print(json.dumps(agent.doctor(),indent=2))
     elif args.action == 'scan':

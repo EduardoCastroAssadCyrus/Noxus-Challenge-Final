@@ -71,6 +71,7 @@ def main():
     try:
         import noxus.agent as agent_module
         from noxus.agent import NoxusAgent
+        from noxus.scanner_help import show_installation_help
         from noxus.storage import atomic_json, read_json
     except ModuleNotFoundError as exc:
         raise RuntimeError("Instale as dependências com bun run setup:local.") from exc
@@ -90,18 +91,19 @@ def main():
     )
 
     if args.action == "init":
-        if config_path.exists():
+        existing_registration = config_path.exists()
+        if existing_registration:
             print("Cadastro existente encontrado; retomando a conexão com o backend.")
         else:
             # Reutiliza o cadastro interativo original: não inventamos desenvolvedor ou alvo.
-            sys.argv = ["noxus", "--config", str(config_path), "init"]
+            sys.argv = ["noxus", "--config", str(config_path), "init", "--no-install-help"]
             runpy.run_module("noxus.__main__", run_name="__main__")
         if not config_path.exists():
             raise RuntimeError("O cadastro do Agent não foi concluído.")
         config = read_json(config_path)
         config["api_url"] = settings.agent_api_url.rstrip("/")
         # Valida o cadastro salvo antes de sincronizar somente destino e chave.
-        NoxusAgent(config)
+        agent = NoxusAgent(config)
         try:
             config["api_key"] = ensure_ingestion_key(settings).get_secret_value()
             atomic_json(config_path, config)
@@ -112,6 +114,7 @@ def main():
         print(f"Agent conectado ao receptor {config['api_url']}/api/findings.")
         print(f"Configuração: {config_path}")
         print("Mantenha bun run dev:api aberto. Não execute noxus serve neste fluxo.")
+        show_installation_help(agent, config_path, compact=True)
         return
 
     if not config_path.is_file():
@@ -127,6 +130,8 @@ def main():
         level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
     )
     agent = NoxusAgent(config)
+    if args.action in {"doctor", "scan", "watch"}:
+        show_installation_help(agent, config_path, args.tools if args.action == "scan" else None)
     print(f"Receptor: {config['api_url']}/api/findings")
     if args.action == "doctor":
         print(json.dumps(agent.doctor(), ensure_ascii=False, indent=2))

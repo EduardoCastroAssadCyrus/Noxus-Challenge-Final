@@ -69,7 +69,7 @@ class ScanAsset(ContractModel):
     id: Text
     name: Text
     type: Text = "web-api"
-    repository_url: Text
+    repository_url: Text | None = None
     branch: Text = "main"
     commit: Annotated[str, StringConstraints(pattern=r"^[0-9a-fA-F]{7,64}$")] | None = None
     local_ip: Text | None = None

@@ -4,6 +4,16 @@ Tudo roda na mesma máquina. O Agent executa scanners, normaliza relatórios e e
 
 ## Comece aqui — Windows, sem scanners, para testar a API
 
+### Ajuda para instalar scanners
+
+`init`, `doctor`, `scan` e `watch` mostram instruções quando um scanner não é encontrado. No fluxo integrado, use `bun run agent:doctor` na raiz `Noxus-Aspm`.
+
+No Windows, a ajuda imprime comandos PowerShell para Semgrep (pip em ambiente separado), Gitleaks (winget), Dependency-Check (Java e ZIP oficial) e Nikto (Git e Perl). Também mostra as entradas de `commands` a mesclar no seu `config.json`. Após instalar, reabra o terminal e execute `doctor` novamente. No Linux/WSL, mostra os comandos para o instalador existente. Nada é instalado automaticamente. A detecção verifica executáveis e pré-requisitos básicos; não executa os scanners.
+
+Referências: [Semgrep](https://semgrep.dev/products/community-edition), [Gitleaks no winget](https://github.com/microsoft/winget-pkgs/tree/master/manifests/g/Gitleaks/Gitleaks), [Dependency-Check CLI](https://dependency-check.github.io/DependencyCheck/dependency-check-cli/), [Nikto](https://github.com/sullo/nikto).
+
+### Iniciar a API independente
+
 Requer Python 3.11 ou superior. Extraia o ZIP e abra a pasta `noxus-local-v2` no terminal do VS Code.
 
 ```powershell
@@ -15,7 +25,7 @@ py -m venv .venv
 .\.venv\Scripts\python.exe -m noxus serve
 ```
 
-O `init` pergunta: pasta **local** do projeto (não clona o repositório), nome, cargo, equipe, URL HTTPS do repositório, nome do ativo e URL da aplicação. Deixe a aplicação vazia se ainda não houver. A API usa porta 8000; o aplicativo analisado pelo Nikto deve usar outra porta, por exemplo 8080.
+O `init` pergunta: pasta **local** do projeto (com ou sem aspas; não clona o repositório), nome, cargo, equipe, URL HTTPS opcional do repositório, nome do ativo e URL da aplicação. Pressione Enter na URL do repositório para analisar somente a pasta local, sem GitHub. Deixe a aplicação vazia se ainda não houver. A API usa porta 8000; o aplicativo analisado pelo Nikto deve usar outra porta, por exemplo 8080.
 
 Em outro terminal, na mesma pasta:
 

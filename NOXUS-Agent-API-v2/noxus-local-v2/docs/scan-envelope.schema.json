@@ -23,10 +23,12 @@
           "type": "string"
         },
         "repository_url": {
-          "maxLength": 1024,
-          "minLength": 1,
-          "title": "Repository Url",
-          "type": "string"
+          "anyOf": [
+            { "type": "string", "maxLength": 1024, "minLength": 1 },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Repository Url"
         },
         "branch": {
           "default": "main",
@@ -87,8 +89,7 @@
       },
       "required": [
         "id",
-        "name",
-        "repository_url"
+        "name"
       ],
       "title": "Asset",
       "type": "object"

@@ -5,6 +5,7 @@ import ipaddress
 import json
 import logging
 import os
+import platform
 import shutil
 import signal
 import socket
@@ -19,11 +20,25 @@ import httpx
 from noxus.models import ScanEnvelope, TOOL_CATEGORIES, NOXUS_AGENT_SOURCE
 from noxus.parsers import normalize
 from noxus.storage import atomic_json, file_lock, now, read_json
+from noxus.tool_paths import scanner_command, perl_executable, java_executable, java_environment
 
 log = logging.getLogger('noxus-agent')
 TOOLS = ['semgrep', 'gitleaks', 'dependency-check', 'nikto']
 IGNORED = {'.git', '.venv', 'venv', 'node_modules', '__pycache__', '.noxus', 'dados', 'dist', 'build', '.pytest_cache'}
 MANIFESTS = {'requirements.txt', 'poetry.lock', 'uv.lock', 'Pipfile.lock', 'package.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'pom.xml', 'build.gradle', 'build.gradle.kts', 'go.mod', 'go.sum', 'Cargo.lock', 'composer.lock'}
+
+def local_repository_path(value):
+    # Aceita caminhos colados com ou sem aspas, inclusive com espaços.
+    value = str(value).strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in (chr(34), chr(39)):
+        value = value[1:-1]
+    if not value:
+        raise ValueError('Informe a pasta local do projeto.')
+    path = Path(value).expanduser().resolve()
+    if not path.is_dir():
+        raise ValueError('Diretório local do repositório não existe.')
+    return path
+
 
 def git(repo, *args):
     try:
@@ -55,9 +70,11 @@ def online(url):
     except OSError:
         return False
 
-def execute(command, cwd, timeout):
+def execute(command, cwd, timeout, env=None):
     """Sem shell. Descarta stdout/stderr do scanner para não registrar segredos."""
     kwargs = {'cwd': cwd, 'stdout': subprocess.DEVNULL, 'stderr': subprocess.DEVNULL}
+    if env is not None:
+        kwargs['env'] = env
     if os.name != 'nt':
         kwargs['start_new_session'] = True
     proc = subprocess.Popen(command, **kwargs)
@@ -74,9 +91,7 @@ def execute(command, cwd, timeout):
 class NoxusAgent:
     def __init__(self, config):
         self.config = config
-        self.repo = Path(config['repository_path']).resolve()
-        if not self.repo.is_dir():
-            raise ValueError('Diretório local do repositório não existe.')
+        self.repo = local_repository_path(config['repository_path'])
         self.state = Path(config['agent_state_dir']).resolve()
         self.pending = self.state / 'pending'
         self.pending.mkdir(parents=True, exist_ok=True)
@@ -94,10 +109,27 @@ class NoxusAgent:
             if not isinstance(configured,list) or not all(isinstance(x,str) for x in configured):
                 raise ValueError('commands deve conter listas de argumentos.')
             return list(configured)
-        return [{'dependency-check':'dependency-check.sh'}.get(tool, tool)]
+        return scanner_command(tool, self.state)
 
     def doctor(self):
-        return {tool: bool(shutil.which(self.command_prefix(tool)[0])) for tool in TOOLS}
+        result = {}
+        for tool in TOOLS:
+            command = self.command_prefix(tool)
+            available = bool(shutil.which(command[0]))
+            if tool == 'dependency-check':
+                available = available and bool(java_executable())
+            if tool == 'nikto':
+                # Encontrar Perl não significa que o script Nikto também existe.
+                # Um caminho absoluto para Perl também funciona fora do PATH.
+                available = available and bool(
+                    shutil.which(command[0]) if Path(command[0]).stem.lower() == 'perl'
+                    else perl_executable()
+                )
+                for argument in command[1:]:
+                    if argument.lower().endswith('.pl'):
+                        available = available and (self.repo / argument).is_file()
+            result[tool] = bool(available)
+        return result
 
     def envelope(self, tool, trigger, start, end, status, findings, error):
         asset = copy.deepcopy(self.config['asset'])
@@ -136,7 +168,8 @@ class NoxusAgent:
                     cmd += ['-h', target, '-Format', 'json', '-output', str(report), '-ask', 'no']
                 else:
                     raise ValueError('Ferramenta não suportada.')
-                code = execute(cmd, str(self.repo), self.config.get('scan_timeout_seconds', 1800))
+                environment = java_environment() if tool == 'dependency-check' else None
+                code = execute(cmd, str(self.repo), self.config.get('scan_timeout_seconds', 1800), env=environment)
                 accepted = (0,10) if tool == 'gitleaks' else (0,)
                 if code not in accepted:
                     raise ValueError(f'Ferramenta terminou com código {code}; verifique a instalação/configuração.')
