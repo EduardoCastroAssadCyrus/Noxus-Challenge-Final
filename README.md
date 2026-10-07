@@ -5,7 +5,9 @@ Os comandos abaixo correspondem ao código existente nesta entrega.
 
 ## 0. Participantes
 Eduardo Castro Assad RM.571577
+
 Gabriel Eduardo Pante RM.569540
+
 Artur Nogueira Francisco RM.570143
 
 ## 1. O que o projeto faz
