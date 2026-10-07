@@ -3,6 +3,11 @@
 Guia do conjunto de projetos da pasta **Challenge**, revisado em 01/10/2026.
 Os comandos abaixo correspondem ao código existente nesta entrega.
 
+## 0. Participantes
+Eduardo Castro Assad RM.571577
+Gabriel Eduardo Pante RM.569540
+Artur Nogueira Francisco RM.570143
+
 ## 1. O que o projeto faz
 
 O Noxus ASPM centraliza achados de segurança, relaciona os relatórios aos ativos cadastrados e oferece triagem assistida por IA. Atualmente é apenas um MVP, com uso atual sendo individual, no próprio computador, com persistência em arquivos JSON.
